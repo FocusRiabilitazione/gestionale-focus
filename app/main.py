@@ -2,27 +2,40 @@ from fastapi import FastAPI, Request
 from sqladmin import Admin, ModelView, action
 from sqlmodel import SQLModel 
 from datetime import date
+from wtforms import SelectField # <--- IMPORTANTE: Serve per il menu a tendina
 
 from .database import engine, init_db
 from .models import Paziente, Inventario, Prestito, Preventivo, Scadenza
 
 app = FastAPI(title="Gestionale Focus Rehab")
 
-# --- CONFIGURAZIONE PAZIENTI (Versione BASE Sicura) ---
+# --- CONFIGURAZIONE PAZIENTI (Versione AVANZATA) ---
 class PazienteAdmin(ModelView, model=Paziente):
     name = "Paziente"
     name_plural = "Pazienti"
     icon = "fa-solid fa-user-injured"
     
-    # Lista semplice
+    # Lista colonne (Cosa vedi nella tabella)
     column_list = [
         Paziente.cognome, 
         Paziente.nome, 
         Paziente.area,
-        Paziente.disdetto
+        Paziente.disdetto,
+        Paziente.data_disdetta
     ]
     
-    # Form semplice (Senza menu a tendina per ora, per testare se funziona)
+    # Aggiungo la ricerca e i filtri (Comodissimi)
+    column_searchable_list = [Paziente.cognome, Paziente.nome]
+    column_filters = [Paziente.area, Paziente.disdetto]
+
+    # --- 1. MENU A TENDINA (AREA) ---
+    form_overrides = dict(area=SelectField)
+    form_args = dict(area=dict(
+        choices=["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico"],
+        label="Area di Competenza"
+    ))
+
+    # Form di inserimento ordinato
     form_columns = [
         Paziente.nome, 
         Paziente.cognome, 
@@ -32,7 +45,26 @@ class PazienteAdmin(ModelView, model=Paziente):
         Paziente.data_disdetta
     ]
 
-# --- ALTRE VISTE ---
+    # --- 2. AZIONE RAPIDA DISDETTA ---
+    @action(
+        name="segna_disdetto",
+        label="❌ Segna come Disdetto",
+        confirmation_message="Confermi la disdetta? Verrà inserita la data di oggi."
+    )
+    async def action_disdetto(self, request: Request):
+        pks = request.query_params.get("pks", "").split(",")
+        if pks and pks != ['']:
+            with self.session_maker() as session:
+                for pk in pks:
+                    model = session.get(Paziente, int(pk))
+                    if model:
+                        model.disdetto = True
+                        model.data_disdetta = date.today()
+                        session.add(model)
+                session.commit()
+        return
+
+# --- ALTRE VISTE (Standard) ---
 class InventarioAdmin(ModelView, model=Inventario):
     name = "Articolo"
     name_plural = "Magazzino"
