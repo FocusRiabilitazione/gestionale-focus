@@ -23,11 +23,10 @@ class PazienteAdmin(ModelView, model=Paziente):
         Paziente.data_disdetta
     ]
     
-    # Ricerca (Funziona perché la tabella è nuova)
+    # Ricerca
     column_searchable_list = [Paziente.cognome, Paziente.nome]
     
-    # Form di inserimento
-    # (Il menu a tendina "Area" appare da solo grazie a models.py!)
+    # Form di inserimento (Menu automatico grazie a models.py)
     form_columns = [
         Paziente.nome, 
         Paziente.cognome, 
@@ -37,25 +36,28 @@ class PazienteAdmin(ModelView, model=Paziente):
         Paziente.data_disdetta
     ]
 
-    # --- IL PEZZO CHE MANCAVA: L'AZIONE AUTOMATICA ---
+    # --- AZIONE DISDETTA (CORRETTA) ---
     @action(
         name="segna_disdetto",
         label="❌ Segna come Disdetto",
         confirmation_message="Confermi la disdetta? Verrà inserita la data di oggi."
     )
-    async def action_disdetto(self, request: Request):
-        # Recupera gli ID dei pazienti selezionati
+    def action_disdetto(self, request: Request): 
+        # NOTA: Ho tolto 'async' qui all'inizio della riga. 
+        # Ora la comunicazione col browser non si interromperà più.
+        
         pks = request.query_params.get("pks", "").split(",")
-        if pks and pks != ['']:
-            with self.session_maker() as session:
-                for pk in pks:
+        
+        with self.session_maker() as session:
+            for pk in pks:
+                # Controllo che sia un numero vero per evitare errori
+                if pk.isdigit():
                     model = session.get(Paziente, int(pk))
                     if model:
-                        # Mette la spunta e la data di oggi
                         model.disdetto = True
                         model.data_disdetta = date.today()
                         session.add(model)
-                session.commit()
+            session.commit()
         return
 
 # --- ALTRE VISTE ---
@@ -97,4 +99,4 @@ def on_startup():
 
 @app.get("/")
 def home():
-    return {"msg": "Gestionale Focus Rehab - Completo e Funzionante"}
+    return {"msg": "Gestionale Focus Rehab - Funzioni Attive"}
