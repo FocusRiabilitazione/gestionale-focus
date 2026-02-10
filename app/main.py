@@ -14,7 +14,6 @@ class PazienteAdmin(ModelView, model=Paziente):
     name_plural = "Pazienti"
     icon = "fa-solid fa-user-injured"
     
-    # Lista colonne
     column_list = [
         Paziente.cognome, 
         Paziente.nome, 
@@ -23,10 +22,8 @@ class PazienteAdmin(ModelView, model=Paziente):
         Paziente.data_disdetta
     ]
     
-    # Ricerca
     column_searchable_list = [Paziente.cognome, Paziente.nome]
     
-    # Form di inserimento (Menu automatico grazie a models.py)
     form_columns = [
         Paziente.nome, 
         Paziente.cognome, 
@@ -36,31 +33,40 @@ class PazienteAdmin(ModelView, model=Paziente):
         Paziente.data_disdetta
     ]
 
-    # --- AZIONE DISDETTA (CORRETTA) ---
+    # --- 1. PULIZIA AUTOMATICA (QUANDO MODIFICHI A MANO) ---
+    # Questa funzione scatta ogni volta che salvi un paziente dalla scheda.
+    async def on_model_change(self, data, model, is_created, request):
+        # Se hai tolto la spunta a "Disdetto", cancelliamo la data
+        if model.disdetto is False:
+            model.data_disdetta = None
+        # (Il salvataggio vero e proprio avviene dopo in automatico)
+
+    # --- 2. AZIONE RAPIDA DISDETTA (BOTTONE) ---
     @action(
         name="segna_disdetto",
         label="❌ Segna come Disdetto",
         confirmation_message="Confermi la disdetta? Verrà inserita la data di oggi."
     )
-    def action_disdetto(self, request: Request): 
-        # NOTA: Ho tolto 'async' qui all'inizio della riga. 
-        # Ora la comunicazione col browser non si interromperà più.
-        
+    def action_disdetto(self, request: Request):
         pks = request.query_params.get("pks", "").split(",")
+        count = 0
         
         with self.session_maker() as session:
             for pk in pks:
-                # Controllo che sia un numero vero per evitare errori
                 if pk.isdigit():
                     model = session.get(Paziente, int(pk))
                     if model:
                         model.disdetto = True
                         model.data_disdetta = date.today()
                         session.add(model)
+                        count += 1
             session.commit()
-        return
+            
+        # RESTITUIAMO UN MESSAGGIO!
+        # Questo risolve l'errore "Internal Server Error" anche se l'azione funzionava.
+        return f"{count} Pazienti segnati come disdetti."
 
-# --- ALTRE VISTE ---
+# --- ALTRE VISTE (Standard) ---
 class InventarioAdmin(ModelView, model=Inventario):
     name = "Articolo"
     name_plural = "Magazzino"
@@ -99,4 +105,4 @@ def on_startup():
 
 @app.get("/")
 def home():
-    return {"msg": "Gestionale Focus Rehab - Funzioni Attive"}
+    return {"msg": "Gestionale Focus Rehab - Full Optional"}
