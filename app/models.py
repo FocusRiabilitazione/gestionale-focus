@@ -3,7 +3,7 @@ from datetime import date
 from sqlmodel import SQLModel, Field, Relationship
 from enum import Enum
 
-# --- CATEGORIE (ENUMS) ---
+# --- ENUMS ---
 class AreaEnum(str, Enum):
     MANO = "Mano-Polso"
     COLONNA = "Colonna"
@@ -16,7 +16,8 @@ class AreaPrestito(str, Enum):
 
 # --- PAZIENTI ---
 class Paziente(SQLModel, table=True):
-    __tablename__ = "pazienti_visite_v2"
+    # CAMBIO NOME TABELLA PER FORZARE RESET
+    __tablename__ = "pazienti_final" 
     
     id: Optional[int] = Field(default=None, primary_key=True)
     nome: str
@@ -33,7 +34,8 @@ class Paziente(SQLModel, table=True):
 
 # --- MAGAZZINO ---
 class Inventario(SQLModel, table=True):
-    __tablename__ = "inventario_smart_v2"
+    # CAMBIO NOME TABELLA PER FORZARE RESET
+    __tablename__ = "inventario_final"
     
     id: Optional[int] = Field(default=None, primary_key=True)
     materiale: str
@@ -44,14 +46,14 @@ class Inventario(SQLModel, table=True):
 
 # --- PRESTITI ---
 class Prestito(SQLModel, table=True):
-    __tablename__ = "prestiti_smart_v1"
+    # CAMBIO NOME TABELLA PER FORZARE RESET
+    __tablename__ = "prestiti_final"
     
     id: Optional[int] = Field(default=None, primary_key=True)
     oggetto: str
     area: AreaPrestito = Field(default=AreaPrestito.OGGETTI)
     
-    # Relazione col Paziente
-    paziente_id: Optional[int] = Field(default=None, foreign_key="pazienti_visite_v2.id")
+    paziente_id: Optional[int] = Field(default=None, foreign_key="pazienti_final.id")
     paziente: Optional[Paziente] = Relationship()
 
     data_inizio: date = Field(default_factory=date.today)
@@ -59,15 +61,16 @@ class Prestito(SQLModel, table=True):
     data_scadenza: Optional[date] = None 
     restituito: bool = False
 
-# --- PREVENTIVO (Versione Base Sicura) ---
+# --- ALTRE ---
 class Preventivo(SQLModel, table=True):
+    __tablename__ = "preventivi_final"
     id: Optional[int] = Field(default=None, primary_key=True)
     paziente: str
     totale: float
     data_creazione: date = Field(default_factory=date.today)
 
-# --- SCADENZARIO ---
 class Scadenza(SQLModel, table=True):
+    __tablename__ = "scadenze_final"
     id: Optional[int] = Field(default=None, primary_key=True)
     descrizione: str
     importo: float
