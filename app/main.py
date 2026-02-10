@@ -14,7 +14,7 @@ class PazienteAdmin(ModelView, model=Paziente):
     name_plural = "Pazienti"
     icon = "fa-solid fa-user-injured"
     
-    # Colonne visibili nella lista (Pulite)
+    # Lista pulita
     column_list = [
         Paziente.cognome, 
         Paziente.nome, 
@@ -24,34 +24,29 @@ class PazienteAdmin(ModelView, model=Paziente):
         Paziente.data_disdetta
     ]
     
-    # Ricerca (Solo cognome e nome)
     column_searchable_list = [Paziente.cognome, Paziente.nome]
-    
-    # Filtri
     column_filters = [Paziente.area, Paziente.disdetto]
-    
-    # Ordinamento default
     column_default_sort = ("cognome", False)
 
-    # Menu a tendina per Area
+    # Menu a tendina
     form_overrides = dict(area=SelectField)
     form_args = dict(area=dict(
         choices=["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico"],
         label="Area di Competenza"
     ))
 
-    # Campi nel form di creazione (Senza i facoltativi rimossi)
+    # Form di inserimento pulito
     form_columns = [
         Paziente.nome, Paziente.cognome, Paziente.area,
         Paziente.note,
         Paziente.disdetto, Paziente.data_disdetta
     ]
 
-    # AZIONE AUTOMATICA "DISDETTA"
+    # Azione Rapida Disdetta
     @action(
         name="segna_disdetto",
         label="❌ Segna come Disdetto",
-        confirmation_message="Vuoi segnare i pazienti selezionati come Disdetti? Verrà inserita la data di oggi."
+        confirmation_message="Confermi la disdetta per i pazienti selezionati?"
     )
     async def action_disdetto(self, request: Request):
         pks = request.query_params.get("pks", "").split(",")
@@ -91,7 +86,7 @@ class ScadenzaAdmin(ModelView, model=Scadenza):
     column_list = [Scadenza.data_scadenza, Scadenza.descrizione, Scadenza.importo, Scadenza.pagato]
     icon = "fa-solid fa-calendar"
 
-# Attivazione Admin
+# Admin Setup
 admin = Admin(app, engine)
 admin.add_view(PazienteAdmin)
 admin.add_view(InventarioAdmin)
