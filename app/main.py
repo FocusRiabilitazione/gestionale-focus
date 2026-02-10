@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request
 from sqladmin import Admin, ModelView, action
 from sqlmodel import SQLModel 
 from datetime import date
+from starlette.responses import RedirectResponse # <--- QUESTO RISOLVE L'ERRORE DEL TASTO
 
 from .database import engine, init_db
 from .models import Paziente, Inventario, Prestito, Preventivo, Scadenza
@@ -33,23 +34,26 @@ class PazienteAdmin(ModelView, model=Paziente):
         Paziente.data_disdetta
     ]
 
-    # --- 1. PULIZIA AUTOMATICA (QUANDO MODIFICHI A MANO) ---
-    # Questa funzione scatta ogni volta che salvi un paziente dalla scheda.
+    # --- 1. INTELLIGENZA DI SALVATAGGIO (Risolve il problema della data che resta) ---
     async def on_model_change(self, data, model, is_created, request):
-        # Se hai tolto la spunta a "Disdetto", cancelliamo la data
+        # Se l'utente ha messo la spunta Disdetto ma non la data -> Metti oggi
+        if model.disdetto is True and model.data_disdetta is None:
+            model.data_disdetta = date.today()
+            
+        # Se l'utente ha TOLTO la spunta Disdetto -> Cancella la data
         if model.disdetto is False:
             model.data_disdetta = None
-        # (Il salvataggio vero e proprio avviene dopo in automatico)
+            
+        # Ora il sistema salverà il modello corretto
 
-    # --- 2. AZIONE RAPIDA DISDETTA (BOTTONE) ---
+    # --- 2. AZIONE TASTO DISDETTA (Risolve l'errore rosso) ---
     @action(
         name="segna_disdetto",
         label="❌ Segna come Disdetto",
         confirmation_message="Confermi la disdetta? Verrà inserita la data di oggi."
     )
-    def action_disdetto(self, request: Request):
+    async def action_disdetto(self, request: Request):
         pks = request.query_params.get("pks", "").split(",")
-        count = 0
         
         with self.session_maker() as session:
             for pk in pks:
@@ -59,14 +63,13 @@ class PazienteAdmin(ModelView, model=Paziente):
                         model.disdetto = True
                         model.data_disdetta = date.today()
                         session.add(model)
-                        count += 1
             session.commit()
-            
-        # RESTITUIAMO UN MESSAGGIO!
-        # Questo risolve l'errore "Internal Server Error" anche se l'azione funzionava.
-        return f"{count} Pazienti segnati come disdetti."
 
-# --- ALTRE VISTE (Standard) ---
+        # TRUCCO FINALE: Invece di restituire testo, ricarichiamo la pagina.
+        # Questo forza il browser a chiudere il popup e mostrare i dati nuovi.
+        return RedirectResponse(request.url_for("admin:list", identity="paziente"), status_code=303)
+
+# --- ALTRE VISTE ---
 class InventarioAdmin(ModelView, model=Inventario):
     name = "Articolo"
     name_plural = "Magazzino"
@@ -105,4 +108,4 @@ def on_startup():
 
 @app.get("/")
 def home():
-    return {"msg": "Gestionale Focus Rehab - Full Optional"}
+    return {"msg": "Gestionale Focus Rehab - Versione Stabile"}
