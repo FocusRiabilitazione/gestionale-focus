@@ -16,7 +16,6 @@ class PazienteAdmin(ModelView, model=Paziente):
     icon = "fa-solid fa-user-injured"
     
     # 1. ESTETICA: VIA LA "X" ROSSA
-    # Questo formatter dice: Se è True metti "✅", se è False non mettere nulla (stringa vuota).
     column_formatters = {
         Paziente.disdetto: lambda m, a: "✅" if m.disdetto else ""
     }
@@ -41,8 +40,8 @@ class PazienteAdmin(ModelView, model=Paziente):
     ]
 
     # 2. LOGICA AUTOMATICA (SALVATAGGIO)
-    # Ho tolto 'async' per renderlo più stabile con il database.
-    def on_model_change(self, data, model, is_created, request):
+    # ⚠️ QUI ERA L'ERRORE: Ho rimesso 'async' perché SQLAdmin lo pretende qui.
+    async def on_model_change(self, data, model, is_created, request):
         # A. Se metti la spunta ma scordi la data -> Mette OGGI
         if model.disdetto is True and not model.data_disdetta:
             model.data_disdetta = date.today()
@@ -50,10 +49,9 @@ class PazienteAdmin(ModelView, model=Paziente):
         # B. Se TOGLI la spunta (il paziente torna attivo) -> Cancella la data!
         if model.disdetto is False:
             model.data_disdetta = None
-            
-        # Il sistema ora salverà queste modifiche automaticamente
 
     # 3. AZIONE TASTO DISDETTA (MASSIVA)
+    # Qui invece 'async' NON serve, altrimenti il redirect si inceppa.
     @action(
         name="segna_disdetto",
         label="❌ Segna come Disdetto",
@@ -114,4 +112,4 @@ def on_startup():
 
 @app.get("/")
 def home():
-    return {"msg": "Gestionale Focus Rehab - Versione Perfetta"}
+    return {"msg": "Gestionale Focus Rehab - Versione Corretta"}
