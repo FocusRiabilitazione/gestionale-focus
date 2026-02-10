@@ -3,7 +3,7 @@ from datetime import date
 from sqlmodel import SQLModel, Field, Relationship
 from enum import Enum
 
-# --- ENUMS (I tuoi originali) ---
+# --- ENUMS (Originali) ---
 class AreaEnum(str, Enum):
     MANO = "Mano-Polso"
     COLONNA = "Colonna"
@@ -22,7 +22,7 @@ class AreaTrattamento(str, Enum):
     VISITA = "Visita"
     ALTRO = "Altro"
 
-# --- 1. PAZIENTI (TUO CODICE ORIGINALE) ---
+# --- 1. PAZIENTI (TUO CODICE ORIGINALE - INTOCCATO) ---
 class Paziente(SQLModel, table=True):
     __tablename__ = "pazienti_visite_v2"
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -41,7 +41,7 @@ class Paziente(SQLModel, table=True):
     def __str__(self):
         return f"{self.cognome} {self.nome}"
 
-# --- 2. MAGAZZINO (TUO CODICE ORIGINALE) ---
+# --- 2. MAGAZZINO (TUO CODICE ORIGINALE - INTOCCATO) ---
 class Inventario(SQLModel, table=True):
     __tablename__ = "inventario_smart_v2"
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -51,7 +51,7 @@ class Inventario(SQLModel, table=True):
     soglia_minima: int = Field(default=2)
     obiettivo: int = Field(default=5)
 
-# --- 3. PRESTITI (TUO CODICE ORIGINALE) ---
+# --- 3. PRESTITI (TUO CODICE ORIGINALE - INTOCCATO) ---
 class Prestito(SQLModel, table=True):
     __tablename__ = "prestiti_smart_v1"
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -65,14 +65,15 @@ class Prestito(SQLModel, table=True):
     restituito: bool = False
 
 # =========================================================
-# DA QUI IN GIÙ È LA NUOVA SEZIONE PREVENTIVI (RESETTATA)
+# MODIFICHE SOLO QUI SOTTO (LISTINO E PREVENTIVI)
 # =========================================================
 
-# --- 4. LISTINO PREZZI (Fondamentale per il menu a tendina) ---
+# --- 4. LISTINO PREZZI ---
 class Trattamento(SQLModel, table=True):
-    __tablename__ = "listino_prezzi_finale" # Nome nuovo per resettare
+    __tablename__ = "listino_prezzi_v6" # Versione nuova per pulizia
     id: Optional[int] = Field(default=None, primary_key=True)
     nome: str
+    area: AreaTrattamento = Field(default=AreaTrattamento.ALTRO)
     prezzo_base: float = Field(default=0.0)
 
     def __str__(self):
@@ -80,33 +81,38 @@ class Trattamento(SQLModel, table=True):
 
 # --- 5. PREVENTIVI (TESTATA) ---
 class Preventivo(SQLModel, table=True):
-    __tablename__ = "preventivi_testata_finale" # Nome nuovo per resettare
+    __tablename__ = "preventivi_testata_v6" # Versione nuova per pulizia
     id: Optional[int] = Field(default=None, primary_key=True)
     data_creazione: date = Field(default_factory=date.today)
     
-    # Collegamento al paziente esistente
+    # Collegamento al Paziente (Usa la tabella pazienti originale)
     paziente_id: Optional[int] = Field(default=None, foreign_key="pazienti_visite_v2.id")
     paziente_rel: Optional[Paziente] = Relationship(back_populates="preventivi")
 
-    oggetto: str = Field(default="Piano di cura", description="Es: Riabilitazione Spalla")
-    note: Optional[str] = None
+    # CAMPI NUOVI RICHIESTI
+    oggetto: str = Field(default="Piano di Cura", description="Es: Ciclo riabilitativo spalla")
+    note: Optional[str] = Field(default=None, description="Note aggiuntive per la stampa")
+    
     totale_calcolato: float = Field(default=0.0)
+    accettato: bool = False
 
-    # Relazione con le righe
+    # Relazione con le righe (IL CARRELLO)
     righe: List["RigaPreventivo"] = Relationship(back_populates="preventivo")
 
     def __str__(self):
         return f"Prev. #{self.id} - {self.data_creazione}"
 
-# --- 6. PREVENTIVI (RIGHE) ---
+# --- 6. PREVENTIVI (RIGHE - IL CARRELLO) ---
 class RigaPreventivo(SQLModel, table=True):
-    __tablename__ = "preventivi_righe_finale" # Nome nuovo per resettare
+    __tablename__ = "preventivi_righe_v6" # Versione nuova per pulizia
     id: Optional[int] = Field(default=None, primary_key=True)
     
-    preventivo_id: Optional[int] = Field(default=None, foreign_key="preventivi_testata_finale.id")
+    # Collegamento al preventivo padre
+    preventivo_id: Optional[int] = Field(default=None, foreign_key="preventivi_testata_v6.id")
     preventivo: Optional[Preventivo] = Relationship(back_populates="righe")
     
-    trattamento_id: Optional[int] = Field(default=None, foreign_key="listino_prezzi_finale.id")
+    # Collegamento al prodotto
+    trattamento_id: Optional[int] = Field(default=None, foreign_key="listino_prezzi_v6.id")
     trattamento: Optional[Trattamento] = Relationship()
     
     quantita: int = Field(default=1)
