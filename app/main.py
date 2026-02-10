@@ -1,112 +1,36 @@
 from fastapi import FastAPI, Request, HTTPException
 from sqladmin import Admin, ModelView, action
-from sqlmodel import SQLModel, Session, select, Field, Relationship, text
+from sqlmodel import SQLModel, Session, select, text
 from datetime import date, timedelta
 from starlette.responses import RedirectResponse
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List
 from markupsafe import Markup
-from enum import Enum
 from sqlalchemy import create_engine
 
-# --- SETUP DATABASE ---
-sqlite_file_name = "database.db"
-sqlite_url = f"sqlite:///{sqlite_file_name}"
-connect_args = {"check_same_thread": False}
-engine = create_engine(sqlite_url, connect_args=connect_args)
+from .database import engine, init_db
+from .models import Paziente, Inventario, Prestito, Preventivo, Scadenza
 
-app = FastAPI(title="Gestionale Focus Rehab - Auto Repair")
+app = FastAPI(title="Gestionale Focus Rehab")
 
-# ================= MODELLI =================
-
-class AreaEnum(str, Enum):
-    MANO = "Mano-Polso"
-    COLONNA = "Colonna"
-    ATM = "ATM"
-    MUSCOLO = "Muscolo-Scheletrico"
-
-class AreaPrestito(str, Enum):
-    OGGETTI = "Oggetti"
-    ELETTROMEDICALI = "Elettromedicali"
-
-class Paziente(SQLModel, table=True):
-    __tablename__ = "pazienti_visite_v2"
-    id: Optional[int] = Field(default=None, primary_key=True)
-    nome: str
-    cognome: str
-    area: AreaEnum = Field(default=AreaEnum.MUSCOLO)
-    note: Optional[str] = None
-    disdetto: bool = False
-    data_disdetta: Optional[date] = None
-    visita_medica: bool = Field(default=False)
-    data_visita: Optional[date] = None
-    def __str__(self): return f"{self.cognome} {self.nome}"
-
-class Inventario(SQLModel, table=True):
-    __tablename__ = "inventario_smart_v2"
-    id: Optional[int] = Field(default=None, primary_key=True)
-    materiale: str
-    area_stanza: str 
-    quantita: int = Field(default=0)
-    soglia_minima: int = Field(default=2) # Nuova colonna
-    obiettivo: int = Field(default=5)     # Nuova colonna
-
-class Prestito(SQLModel, table=True):
-    __tablename__ = "prestiti_smart_v1"
-    id: Optional[int] = Field(default=None, primary_key=True)
-    oggetto: str
-    area: AreaPrestito = Field(default=AreaPrestito.OGGETTI)
-    paziente_id: Optional[int] = Field(default=None, foreign_key="pazienti_visite_v2.id")
-    paziente: Optional[Paziente] = Relationship()
-    data_inizio: date = Field(default_factory=date.today)
-    durata_giorni: int = Field(default=7)
-    data_scadenza: Optional[date] = None 
-    restituito: bool = False
-
-class Preventivo(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    paziente: str
-    totale: float
-    data_creazione: date = Field(default_factory=date.today)
-
-class Scadenza(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    descrizione: str
-    importo: float
-    data_scadenza: date
-    pagato: bool = False
-
-# ================= FUNZIONI DI RIPARAZIONE E AVVIO =================
-
-def init_db():
-    SQLModel.metadata.create_all(engine)
-
+# --- AUTO-RIPARAZIONE DATABASE (Per evitare crash se il DB è vecchio) ---
 @app.on_event("startup")
 def on_startup():
-    # 1. Crea le tabelle se non esistono
     init_db()
-    
-    # 2. MECCANICO AUTOMATICO: Tenta di aggiungere le colonne mancanti
-    # Se le colonne esistono già, ignora l'errore e prosegue.
     with Session(engine) as session:
+        # Se mancano le colonne nuove nel magazzino, le aggiunge da solo
         try:
-            print("🔧 Tentativo riparazione Magazzino...")
             session.exec(text("ALTER TABLE inventario_smart_v2 ADD COLUMN soglia_minima INTEGER DEFAULT 2"))
             session.commit()
-            print("✅ Colonna soglia_minima aggiunta!")
         except Exception:
-            pass # Esiste già, tutto ok
-
+            pass 
         try:
             session.exec(text("ALTER TABLE inventario_smart_v2 ADD COLUMN obiettivo INTEGER DEFAULT 5"))
             session.commit()
-            print("✅ Colonna obiettivo aggiunta!")
         except Exception:
-            pass # Esiste già, tutto ok
+            pass
 
-# ================= ADMIN & LOGICA =================
-
-# Importatori
+# --- STRUTTURE IMPORT ---
 class PazienteImport(BaseModel):
     nome: str; cognome: str; area: str
 class InventarioImport(BaseModel):
@@ -114,7 +38,7 @@ class InventarioImport(BaseModel):
 class PrestitoImport(BaseModel):
     oggetto: str; area: str; nome_paziente: str; cognome_paziente: str; durata_giorni: int=7
 
-# Endpoint Magazzino
+# --- AZIONI RAPIDE ---
 @app.get("/magazzino/piu/{pk}")
 def aumenta_quantita(request: Request, pk: int):
     with Session(engine) as session:
@@ -129,28 +53,33 @@ def diminuisci_quantita(request: Request, pk: int):
         if item and item.quantita > 0: item.quantita -= 1; session.add(item); session.commit()
     return RedirectResponse(request.url_for("admin:list", identity="inventario"), status_code=303)
 
-# Formattatori
+# --- FORMATTAZIONE MAGAZZINO (Spostata qui per farla funzionare) ---
 def formatta_con_bottoni(model, attribute):
     q = model.quantita if model.quantita is not None else 0
     s = model.soglia_minima if model.soglia_minima is not None else 0
     o = model.obiettivo if model.obiettivo is not None else 0
+    
     if q <= s: stato = f"🔴 {q} (ORDINA!)"
     elif q >= o: stato = f"🌟 {q} (Pieno)"
     else: stato = f"✅ {q} (Ok)"
+        
     style = "text-decoration:none; border:1px solid #ccc; padding:2px 6px; border-radius:4px; margin:0 2px; background:#f9f9f9;"
-    return Markup(f'<a href="/magazzino/meno/{model.id}" style="{style}">➖</a> <b>{stato}</b> <a href="/magazzino/piu/{model.id}" style="{style}">➕</a>')
+    btn_meno = f'<a href="/magazzino/meno/{model.id}" style="{style}">➖</a>'
+    btn_piu = f'<a href="/magazzino/piu/{model.id}" style="{style}">➕</a>'
+    return Markup(f"{btn_meno} &nbsp; <b>{stato}</b> &nbsp; {btn_piu}")
 
 def formatta_scadenza(model, attribute):
     if not model.data_scadenza: return "⏳ In corso"
     diff = (model.data_scadenza - date.today()).days
     if diff < 0: return Markup(f'<span style="color:red; font-weight:bold;">🔴 SCADUTO da {abs(diff)} gg!</span>')
-    return Markup(f"⏳ Scade tra {diff} gg")
+    elif diff == 0: return Markup('<span style="color:orange; font-weight:bold;">🟠 SCADE OGGI!</span>')
+    else: return Markup(f"⏳ Scade tra {diff} gg")
 
-# Viste Admin
+# --- AMMINISTRAZIONE ---
 class PazienteAdmin(ModelView, model=Paziente):
     name="Paziente"; name_plural="Pazienti"; icon="fa-solid fa-user-injured"
-    column_formatters={Paziente.disdetto: lambda m,a: "✅" if m.disdetto else ""}
-    column_list=[Paziente.cognome, Paziente.nome, Paziente.area, Paziente.disdetto]
+    column_formatters={Paziente.disdetto: lambda m,a: "✅" if m.disdetto else "", Paziente.visita_medica: lambda m,a: "🩺" if m.visita_medica else ""}
+    column_list=[Paziente.cognome, Paziente.nome, Paziente.area, Paziente.visita_medica, Paziente.disdetto]
     form_columns=[Paziente.nome, Paziente.cognome, Paziente.area, Paziente.note, Paziente.visita_medica, Paziente.data_visita, Paziente.disdetto, Paziente.data_disdetta]
     @action(name="segna_disdetto", label="❌ Segna Disdetto", confirmation_message="Confermi?")
     def action_disdetto(self, request: Request):
@@ -165,6 +94,7 @@ class PazienteAdmin(ModelView, model=Paziente):
 
 class InventarioAdmin(ModelView, model=Inventario):
     name="Articolo"; name_plural="Magazzino"; icon="fa-solid fa-box"
+    # Qui usiamo la funzione esterna
     column_formatters={Inventario.quantita: formatta_con_bottoni}
     column_list=[Inventario.materiale, Inventario.area_stanza, Inventario.quantita, Inventario.soglia_minima, Inventario.obiettivo]
     column_default_sort="area_stanza"
@@ -188,11 +118,11 @@ class ScadenzaAdmin(ModelView, model=Scadenza):
     name="Scadenza"; name_plural="Scadenzario"; icon="fa-solid fa-calendar"
     column_list=[Scadenza.descrizione, Scadenza.data_scadenza, Scadenza.importo]
 
-# Attivazione
+# --- ATTIVAZIONE ---
 admin = Admin(app, engine)
 admin.add_view(PazienteAdmin); admin.add_view(InventarioAdmin); admin.add_view(PrestitoAdmin); admin.add_view(PreventivoAdmin); admin.add_view(ScadenzaAdmin)
 
-# Endpoints Importazione
+# --- IMPORTATORI ---
 @app.post("/import-rapido")
 def import_pazienti(l: List[PazienteImport]):
     with Session(engine) as s:
@@ -215,4 +145,4 @@ def import_prestiti(l: List[PrestitoImport]):
     return {"msg": "Ok"}
 
 @app.get("/")
-def home(): return {"msg": "Gestionale Focus Rehab - Riparato"}
+def home(): return {"msg": "Gestionale Focus Rehab - Ripristinato e Funzionante"}
