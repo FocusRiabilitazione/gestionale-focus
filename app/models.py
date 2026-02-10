@@ -1,23 +1,22 @@
-from typing import Optional
+from typing import Optional, List
 from datetime import date
 from sqlmodel import SQLModel, Field, Relationship
 from enum import Enum
 
-# --- MENU A TENDINA PAZIENTI ---
+# --- ENUMS ---
 class AreaEnum(str, Enum):
     MANO = "Mano-Polso"
     COLONNA = "Colonna"
     ATM = "ATM"
     MUSCOLO = "Muscolo-Scheletrico"
 
-# --- NUOVO MENU A TENDINA PRESTITI ---
 class AreaPrestito(str, Enum):
     OGGETTI = "Oggetti"
     ELETTROMEDICALI = "Elettromedicali"
 
-# --- ANAGRAFICA PAZIENTI ---
+# --- PAZIENTI ---
 class Paziente(SQLModel, table=True):
-    __tablename__ = "pazienti_visite_v2" # Manteniamo la tabella pazienti esistente
+    __tablename__ = "pazienti_visite_v2"
     
     id: Optional[int] = Field(default=None, primary_key=True)
     nome: str
@@ -29,11 +28,10 @@ class Paziente(SQLModel, table=True):
     visita_medica: bool = Field(default=False)
     data_visita: Optional[date] = None
 
-    # Serve per far vedere il nome nel menu a tendina dei prestiti
     def __str__(self):
         return f"{self.cognome} {self.nome}"
 
-# --- MAGAZZINO ---
+# --- MAGAZZINO (Con le colonne nuove!) ---
 class Inventario(SQLModel, table=True):
     __tablename__ = "inventario_smart_v2"
     
@@ -41,38 +39,26 @@ class Inventario(SQLModel, table=True):
     materiale: str
     area_stanza: str 
     quantita: int = Field(default=0)
-    soglia_minima: int = Field(default=2)
-    obiettivo: int = Field(default=5)
+    soglia_minima: int = Field(default=2) # <--- QUESTA MANCAVA NEL VECCHIO DB
+    obiettivo: int = Field(default=5)     # <--- QUESTA MANCAVA NEL VECCHIO DB
 
-# --- PRESTITI (NUOVO E POTENTE) ---
+# --- PRESTITI ---
 class Prestito(SQLModel, table=True):
     __tablename__ = "prestiti_smart_v1"
     
     id: Optional[int] = Field(default=None, primary_key=True)
-    
-    # 1. Cosa prestiamo?
     oggetto: str
     area: AreaPrestito = Field(default=AreaPrestito.OGGETTI)
     
-    # 2. A chi? (Collegamento intelligente al Paziente)
     paziente_id: Optional[int] = Field(default=None, foreign_key="pazienti_visite_v2.id")
     paziente: Optional[Paziente] = Relationship()
 
-    # 3. Tempo
-    data_inizio: date = Field(default_factory=date.today) # Parte da oggi in automatico
-    durata_giorni: int = Field(default=7) # Default 1 settimana
-    data_scadenza: Optional[date] = None # Calcolata dal sistema
-    
-    # 4. Stato
+    data_inizio: date = Field(default_factory=date.today)
+    durata_giorni: int = Field(default=7)
+    data_scadenza: Optional[date] = None 
     restituito: bool = False
 
-# --- ALTRE TABELLE ---
-class Preventivo(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    paziente: str
-    totale: float
-    data_creazione: date = Field(default_factory=date.today)
-
+# --- SCADENZE ---
 class Scadenza(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     descrizione: str
