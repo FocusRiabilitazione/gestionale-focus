@@ -1,30 +1,22 @@
 from typing import Optional
 from datetime import date
 from sqlmodel import SQLModel, Field
-from enum import Enum # <--- Importiamo questo per il menu a tendina nativo
-
-# --- DEFINIZIONE MENU A TENDINA ---
-class AreaEnum(str, Enum):
-    MANO = "Mano-Polso"
-    COLONNA = "Colonna"
-    ATM = "ATM"
-    MUSCOLO = "Muscolo-Scheletrico"
 
 # --- ANAGRAFICA PAZIENTI ---
 class Paziente(SQLModel, table=True):
-    # Usiamo v4 per essere sicuri che crei la tabella nuova compatibile col menu
-    __tablename__ = "pazienti_v4" 
+    # Usiamo v5 per ripartire da zero e puliti
+    __tablename__ = "pazienti_v5" 
     
     id: Optional[int] = Field(default=None, primary_key=True)
     
-    # Campi Obbligatori
+    # Campi Base
     nome: str
     cognome: str
     
-    # QUI LA MAGIA: Usando AreaEnum, il sistema crea da solo il menu a tendina!
-    area: AreaEnum = Field(default=AreaEnum.MUSCOLO)
+    # Qui il trucco: nel DB è una stringa normale, così non dà errori
+    area: str 
     
-    # Campi Facoltativi
+    # Facoltativi
     note: Optional[str] = None
     
     # Stati
@@ -34,7 +26,7 @@ class Paziente(SQLModel, table=True):
     visita_esterna: bool = False
     data_visita: Optional[date] = None
 
-# --- ALTRE TABELLE (Rimangono uguali) ---
+# --- ALTRE TABELLE (Standard) ---
 class Inventario(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     materiale: str
