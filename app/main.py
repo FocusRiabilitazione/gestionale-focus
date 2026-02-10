@@ -8,7 +8,7 @@ from typing import List
 from markupsafe import Markup
 
 from .database import engine, init_db
-from .models import Paziente, Inventario, Prestito, Preventivo, Scadenza
+from .models import Paziente, Inventario, Prestito, Preventivo, Scadenza, AreaMagazzino
 
 app = FastAPI(title="Gestionale Focus Rehab")
 
@@ -27,6 +27,7 @@ def aumenta_quantita(request: Request, pk: int):
             item.quantita += 1
             session.add(item)
             session.commit()
+    # Ricarica la pagina corrente
     return RedirectResponse(request.headers.get("referer"), status_code=303)
 
 @app.get("/magazzino/meno/{pk}")
@@ -39,60 +40,95 @@ def diminuisci_quantita(request: Request, pk: int):
             session.commit()
     return RedirectResponse(request.headers.get("referer"), status_code=303)
 
-# --- FUNZIONI DI FORMATTAZIONE GRAFICA ---
-
-# 1. BADGE AREA (Versione Sicura Anti-Crash)
-def formatta_area_badge(model, attribute):
-    # Recuperiamo il valore gestendo sia il caso "Oggetto Enum" che "Stringa semplice"
-    valore_grezzo = getattr(model, "area_stanza", "Altro")
-    nome_area = str(valore_grezzo.value) if hasattr(valore_grezzo, "value") else str(valore_grezzo)
-    
-    # Colori pastello professionali
-    colors = {
-        "Mano": "#3498db",        # Blu
-        "Medicinali": "#e74c3c",  # Rosso
-        "Pulizie": "#f1c40f",     # Giallo
-        "Segreteria": "#9b59b6",  # Viola
-        "Stanze": "#2ecc71"       # Verde
-    }
-    colore = colors.get(nome_area, "#95a5a6") # Grigio se non trova il colore
-    
-    # Creiamo il badge HTML
-    html = f'''
-        <span style="
-            background-color:{colore}; 
-            color:white; 
-            padding:4px 10px; 
-            border-radius:15px; 
-            font-size:0.85em; 
-            font-weight:600;
-            display:inline-block;
-            min-width: 80px;
-            text-align:center;
-        ">
-            {nome_area}
-        </span>
-    '''
-    return Markup(html)
-
-# 2. QUANTITÀ CON BOTTONI (La tua versione funzionante)
-def formatta_con_bottoni(model, attribute):
+# --- FUNZIONE FORMATTAZIONE BASE (Solo Bottoni) ---
+def formatta_quantita(model, attribute):
     stato = ""
+    # Icona semplice basata sui numeri
     if model.quantita <= model.soglia_minima:
-        stato = f'<span style="color:#c0392b">🔴 {model.quantita} (ORDINA!)</span>'
+        stato = f"🔴 {model.quantita}"
     elif model.quantita >= model.obiettivo:
-        stato = f'<span style="color:#27ae60">🌟 {model.quantita} (Pieno)</span>'
+        stato = f"🌟 {model.quantita}"
     else:
-        stato = f'<span style="color:#2980b9">✅ {model.quantita} (Ok)</span>'
+        stato = f"✅ {model.quantita}"
         
-    style = "text-decoration:none; border:1px solid #ddd; padding:2px 8px; border-radius:4px; margin:0 5px; background:#fff; font-weight:bold; color:#555;"
+    style = "text-decoration:none; border:1px solid #ccc; padding:2px 7px; border-radius:4px; margin:0 3px; background:#fff; font-weight:bold; color:#333;"
     btn_meno = f'<a href="/magazzino/meno/{model.id}" style="{style}">-</a>'
     btn_piu = f'<a href="/magazzino/piu/{model.id}" style="{style}">+</a>'
     
     return Markup(f"{btn_meno} {stato} {btn_piu}")
 
 
-# --- CONFIGURAZIONE PAZIENTI ---
+# --- CONFIGURAZIONE BASE MAGAZZINO (Lo "stampino" per le sotto-pagine) ---
+class InventarioBase(ModelView):
+    # Queste impostazioni valgono per tutte le sotto-pagine
+    column_formatters = { Inventario.quantita: formatta_quantita }
+    
+    # Nelle sotto-pagine non serve vedere la colonna "Area" (è ovvia)
+    column_list = [
+        Inventario.materiale, 
+        Inventario.quantita, 
+        Inventario.soglia_minima, 
+        Inventario.obiettivo
+    ]
+    
+    form_columns = [
+        Inventario.materiale,
+        Inventario.area_stanza,
+        Inventario.quantita,
+        Inventario.soglia_minima,
+        Inventario.obiettivo
+    ]
+
+# --- LE 5 SOTTO-PAGINE ---
+# Usiamo "category" per raggrupparle sotto la voce "Magazzino"
+
+class MagazzinoMano(InventarioBase, model=Inventario):
+    name = "Mano"
+    name_plural = "Mano"
+    category = "Magazzino" # <--- IL SEGRETO: Crea la cartella
+    icon = "fa-solid fa-hand"
+    
+    def list_query(self, request):
+        return select(Inventario).where(Inventario.area_stanza == AreaMagazzino.MANO)
+
+class MagazzinoMedicinali(InventarioBase, model=Inventario):
+    name = "Medicinali"
+    name_plural = "Medicinali"
+    category = "Magazzino"
+    icon = "fa-solid fa-pills"
+    
+    def list_query(self, request):
+        return select(Inventario).where(Inventario.area_stanza == AreaMagazzino.MEDICINALI)
+
+class MagazzinoPulizie(InventarioBase, model=Inventario):
+    name = "Pulizie"
+    name_plural = "Pulizie"
+    category = "Magazzino"
+    icon = "fa-solid fa-broom"
+    
+    def list_query(self, request):
+        return select(Inventario).where(Inventario.area_stanza == AreaMagazzino.PULIZIE)
+
+class MagazzinoSegreteria(InventarioBase, model=Inventario):
+    name = "Segreteria"
+    name_plural = "Segreteria"
+    category = "Magazzino"
+    icon = "fa-solid fa-stapler"
+    
+    def list_query(self, request):
+        return select(Inventario).where(Inventario.area_stanza == AreaMagazzino.SEGRETERIA)
+
+class MagazzinoStanze(InventarioBase, model=Inventario):
+    name = "Stanze"
+    name_plural = "Stanze"
+    category = "Magazzino"
+    icon = "fa-solid fa-door-closed"
+    
+    def list_query(self, request):
+        return select(Inventario).where(Inventario.area_stanza == AreaMagazzino.STANZE)
+
+
+# --- PAZIENTI ---
 class PazienteAdmin(ModelView, model=Paziente):
     name = "Paziente"
     name_plural = "Pazienti"
@@ -128,53 +164,6 @@ class PazienteAdmin(ModelView, model=Paziente):
             session.commit()
         return RedirectResponse(request.url_for("admin:list", identity="paziente"), status_code=303)
 
-
-# --- CONFIGURAZIONE MAGAZZINO PULITO ---
-class InventarioAdmin(ModelView, model=Inventario):
-    name = "Magazzino"
-    name_plural = "Magazzino"
-    icon = "fa-solid fa-boxes-stacked"
-
-    # 1. Rinominiamo le colonne per renderle più corte e leggibili
-    column_labels = {
-        Inventario.area_stanza: "Reparto",
-        Inventario.materiale: "Prodotto",
-        Inventario.quantita: "Giacenza",
-        Inventario.soglia_minima: "Min",
-        Inventario.obiettivo: "Target"
-    }
-
-    # 2. Applichiamo le formattazioni grafiche
-    column_formatters = {
-        Inventario.quantita: formatta_con_bottoni,
-        Inventario.area_stanza: formatta_area_badge
-    }
-
-    # 3. Ordine delle colonne: Prima il Reparto, poi il Prodotto
-    column_list = [
-        Inventario.area_stanza, 
-        Inventario.materiale, 
-        Inventario.quantita, 
-        Inventario.soglia_minima, 
-        Inventario.obiettivo
-    ]
-    
-    # 4. TRUCCO ESSENZIALE: Ordina automaticamente per Reparto!
-    # Questo raggruppa visivamente le righe senza bisogno di menu separati.
-    column_default_sort = "area_stanza" 
-
-    column_searchable_list = [Inventario.materiale]
-    column_filters = [Inventario.area_stanza] # Aggiunge il filtro laterale
-    
-    form_columns = [
-        Inventario.materiale,
-        Inventario.area_stanza,
-        Inventario.quantita,
-        Inventario.soglia_minima,
-        Inventario.obiettivo
-    ]
-
-
 # --- ALTRE VISTE ---
 class PrestitoAdmin(ModelView, model=Prestito):
     name = "Prestito"
@@ -197,7 +186,14 @@ class ScadenzaAdmin(ModelView, model=Scadenza):
 # --- ATTIVAZIONE ---
 admin = Admin(app, engine)
 admin.add_view(PazienteAdmin)
-admin.add_view(InventarioAdmin)
+
+# Aggiungiamo le 5 sotto-pagine (L'ordine qui decide l'ordine nel menu)
+admin.add_view(MagazzinoMano)
+admin.add_view(MagazzinoMedicinali)
+admin.add_view(MagazzinoPulizie)
+admin.add_view(MagazzinoSegreteria)
+admin.add_view(MagazzinoStanze)
+
 admin.add_view(PrestitoAdmin)
 admin.add_view(PreventivoAdmin)
 admin.add_view(ScadenzaAdmin)
@@ -222,4 +218,4 @@ def import_pazienti(lista_pazienti: List[PazienteImport]):
 
 @app.get("/")
 def home():
-    return {"msg": "Gestionale Focus Rehab - Grafica Pulita"}
+    return {"msg": "Gestionale Focus Rehab - Sotto-pagine Attive"}
