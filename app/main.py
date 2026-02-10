@@ -2,20 +2,21 @@ from fastapi import FastAPI, Request
 from sqladmin import Admin, ModelView, action
 from sqlmodel import SQLModel 
 from datetime import date
-from wtforms import SelectField # <--- IMPORTANTE: Serve per il menu a tendina
+
+# Nota: NON importiamo più wtforms, così evitiamo l'errore!
 
 from .database import engine, init_db
 from .models import Paziente, Inventario, Prestito, Preventivo, Scadenza
 
 app = FastAPI(title="Gestionale Focus Rehab")
 
-# --- CONFIGURAZIONE PAZIENTI (Versione AVANZATA) ---
+# --- CONFIGURAZIONE PAZIENTI ---
 class PazienteAdmin(ModelView, model=Paziente):
     name = "Paziente"
     name_plural = "Pazienti"
     icon = "fa-solid fa-user-injured"
     
-    # Lista colonne (Cosa vedi nella tabella)
+    # Colonne visibili nella lista
     column_list = [
         Paziente.cognome, 
         Paziente.nome, 
@@ -24,18 +25,13 @@ class PazienteAdmin(ModelView, model=Paziente):
         Paziente.data_disdetta
     ]
     
-    # Aggiungo la ricerca e i filtri (Comodissimi)
+    # Barra di Ricerca e Filtri
     column_searchable_list = [Paziente.cognome, Paziente.nome]
     column_filters = [Paziente.area, Paziente.disdetto]
+    column_default_sort = ("cognome", False)
 
-    # --- 1. MENU A TENDINA (AREA) ---
-    form_overrides = dict(area=SelectField)
-    form_args = dict(area=dict(
-        choices=["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico"],
-        label="Area di Competenza"
-    ))
-
-    # Form di inserimento ordinato
+    # Form di inserimento (Semplice e pulito)
+    # Il campo 'area' diventerà automaticamente un menu a tendina grazie a models.py
     form_columns = [
         Paziente.nome, 
         Paziente.cognome, 
@@ -45,7 +41,7 @@ class PazienteAdmin(ModelView, model=Paziente):
         Paziente.data_disdetta
     ]
 
-    # --- 2. AZIONE RAPIDA DISDETTA ---
+    # --- AZIONE RAPIDA DISDETTA (L'unica aggiunta) ---
     @action(
         name="segna_disdetto",
         label="❌ Segna come Disdetto",
@@ -53,6 +49,7 @@ class PazienteAdmin(ModelView, model=Paziente):
     )
     async def action_disdetto(self, request: Request):
         pks = request.query_params.get("pks", "").split(",")
+        # Controllo che ci siano ID validi
         if pks and pks != ['']:
             with self.session_maker() as session:
                 for pk in pks:
@@ -64,7 +61,7 @@ class PazienteAdmin(ModelView, model=Paziente):
                 session.commit()
         return
 
-# --- ALTRE VISTE (Standard) ---
+# --- ALTRE VISTE ---
 class InventarioAdmin(ModelView, model=Inventario):
     name = "Articolo"
     name_plural = "Magazzino"
