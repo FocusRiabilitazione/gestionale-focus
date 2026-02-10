@@ -16,8 +16,7 @@ class AreaPrestito(str, Enum):
 
 # --- PAZIENTI ---
 class Paziente(SQLModel, table=True):
-    # CAMBIO NOME TABELLA PER FORZARE RESET
-    __tablename__ = "pazienti_final" 
+    __tablename__ = "pazienti_v3_fix"  # <--- NUOVO NOME PER FORZARE IL RESET
     
     id: Optional[int] = Field(default=None, primary_key=True)
     nome: str
@@ -34,8 +33,7 @@ class Paziente(SQLModel, table=True):
 
 # --- MAGAZZINO ---
 class Inventario(SQLModel, table=True):
-    # CAMBIO NOME TABELLA PER FORZARE RESET
-    __tablename__ = "inventario_final"
+    __tablename__ = "inventario_v3_fix" # <--- NUOVO NOME PER FORZARE IL RESET
     
     id: Optional[int] = Field(default=None, primary_key=True)
     materiale: str
@@ -46,14 +44,13 @@ class Inventario(SQLModel, table=True):
 
 # --- PRESTITI ---
 class Prestito(SQLModel, table=True):
-    # CAMBIO NOME TABELLA PER FORZARE RESET
-    __tablename__ = "prestiti_final"
+    __tablename__ = "prestiti_v3_fix" # <--- NUOVO NOME PER FORZARE IL RESET
     
     id: Optional[int] = Field(default=None, primary_key=True)
     oggetto: str
     area: AreaPrestito = Field(default=AreaPrestito.OGGETTI)
     
-    paziente_id: Optional[int] = Field(default=None, foreign_key="pazienti_final.id")
+    paziente_id: Optional[int] = Field(default=None, foreign_key="pazienti_v3_fix.id")
     paziente: Optional[Paziente] = Relationship()
 
     data_inizio: date = Field(default_factory=date.today)
@@ -61,16 +58,16 @@ class Prestito(SQLModel, table=True):
     data_scadenza: Optional[date] = None 
     restituito: bool = False
 
-# --- ALTRE ---
+# --- ALTRE TABELLE ---
 class Preventivo(SQLModel, table=True):
-    __tablename__ = "preventivi_final"
+    __tablename__ = "preventivi_v3_fix"
     id: Optional[int] = Field(default=None, primary_key=True)
     paziente: str
     totale: float
     data_creazione: date = Field(default_factory=date.today)
 
 class Scadenza(SQLModel, table=True):
-    __tablename__ = "scadenze_final"
+    __tablename__ = "scadenze_v3_fix"
     id: Optional[int] = Field(default=None, primary_key=True)
     descrizione: str
     importo: float
