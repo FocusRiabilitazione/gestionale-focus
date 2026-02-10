@@ -10,7 +10,7 @@ class AreaEnum(str, Enum):
     ATM = "ATM"
     MUSCOLO = "Muscolo-Scheletrico"
 
-# --- NUOVO MENU A TENDINA MAGAZZINO ---
+# --- MENU A TENDINA MAGAZZINO ---
 class AreaMagazzino(str, Enum):
     SEGRETERIA = "Segreteria"
     MANO = "Mano"
@@ -18,34 +18,40 @@ class AreaMagazzino(str, Enum):
     MEDICINALI = "Medicinali"
     PULIZIE = "Pulizie"
 
-# --- ANAGRAFICA PAZIENTI (Invariata) ---
+# --- ANAGRAFICA PAZIENTI ---
 class Paziente(SQLModel, table=True):
-    __tablename__ = "pazienti_visite_v1" 
+    # Cambio versione per forzare l'aggiornamento
+    __tablename__ = "pazienti_visite_v2" 
+    
     id: Optional[int] = Field(default=None, primary_key=True)
     nome: str
     cognome: str
     area: AreaEnum = Field(default=AreaEnum.MUSCOLO)
     note: Optional[str] = None
+    
+    # Stati
     disdetto: bool = False
     data_disdetta: Optional[date] = None
+    
+    # Nuovi campi
     visita_medica: bool = Field(default=False)
     data_visita: Optional[date] = None
 
-# --- MAGAZZINO (AGGIORNATO) ---
+# --- MAGAZZINO ---
 class Inventario(SQLModel, table=True):
-    # Cambio nome per creare la tabella nuova pulita
-    __tablename__ = "inventario_smart_v1"
+    # Cambio versione per creare le colonne nuove
+    __tablename__ = "inventario_smart_v2"
     
     id: Optional[int] = Field(default=None, primary_key=True)
-    
     materiale: str
     
-    # Menu a tendina collegato alla lista sopra
+    # Menu a tendina magazzino
     area_stanza: AreaMagazzino = Field(default=AreaMagazzino.STANZE)
     
-    quantita: int = Field(default=0, description="Quanti ne abbiamo ora")
-    soglia_minima: int = Field(default=2, description="Quando scatta l'allarme")
-    obiettivo: int = Field(default=5, description="Quanti dovremmo averne")
+    # Campi numerici con valori di default per evitare errori
+    quantita: int = Field(default=0)
+    soglia_minima: int = Field(default=2)
+    obiettivo: int = Field(default=5)
 
 # --- ALTRE TABELLE ---
 class Prestito(SQLModel, table=True):
