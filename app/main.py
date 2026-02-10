@@ -27,7 +27,7 @@ def aumenta_quantita(request: Request, pk: int):
             item.quantita += 1
             session.add(item)
             session.commit()
-    # Torna alla pagina precedente
+    # Ricarica la pagina da cui sei venuto
     return RedirectResponse(request.headers.get("referer"), status_code=303)
 
 @app.get("/magazzino/meno/{pk}")
@@ -40,32 +40,9 @@ def diminuisci_quantita(request: Request, pk: int):
             session.commit()
     return RedirectResponse(request.headers.get("referer"), status_code=303)
 
-# --- FORMATTAZIONE VISIVA SICURA (Anticrash) ---
-
-def formatta_area(model, attribute):
-    # 1. Recuperiamo il valore in modo sicuro (gestisce sia Enum che stringhe)
-    valore_grezzo = getattr(model, "area_stanza", "Altro")
-    area = "Altro"
-    
-    if hasattr(valore_grezzo, "value"):
-        area = valore_grezzo.value # È un Enum
-    else:
-        area = str(valore_grezzo) # È una stringa o altro
-        
-    # 2. Assegniamo i colori
-    colore = "gray" 
-    if area == "Mano": colore = "#3498db"        # Blu
-    elif area == "Medicinali": colore = "#e74c3c" # Rosso
-    elif area == "Pulizie": colore = "#f1c40f"    # Giallo
-    elif area == "Segreteria": colore = "#9b59b6" # Viola
-    elif area == "Stanze": colore = "#2ecc71"     # Verde
-    
-    # 3. Disegniamo l'etichetta
-    html = f'<span style="background-color:{colore}; color:white; padding:4px 8px; border-radius:12px; font-size:0.85em; font-weight:bold;">{area}</span>'
-    return Markup(html)
-
+# --- FORMATTAZIONE SICURA (Solo Quantità) ---
 def formatta_quantita(model, attribute):
-    # Controlli di sicurezza per evitare crash su valori None
+    # Usiamo valori sicuri per evitare crash
     q = model.quantita if model.quantita is not None else 0
     soglia = model.soglia_minima if model.soglia_minima is not None else 0
     obiett = model.obiettivo if model.obiettivo is not None else 0
@@ -85,26 +62,27 @@ def formatta_quantita(model, attribute):
     return Markup(f"{btn_meno} {stato} {btn_piu}")
 
 
-# --- MAGAZZINO ---
+# --- CONFIGURAZIONE MAGAZZINO ---
 class InventarioAdmin(ModelView, model=Inventario):
     name = "Magazzino"
     name_plural = "Magazzino"
     icon = "fa-solid fa-boxes-stacked"
     
+    # Applichiamo solo la formattazione quantità che sappiamo funzionare
     column_formatters = {
-        Inventario.quantita: formatta_quantita,
-        Inventario.area_stanza: formatta_area
+        Inventario.quantita: formatta_quantita
     }
 
     column_list = [
+        Inventario.area_stanza,  # Mettiamo l'area come PRIMA colonna
         Inventario.materiale, 
-        Inventario.area_stanza, 
         Inventario.quantita, 
         Inventario.soglia_minima, 
         Inventario.obiettivo
     ]
     
-    # ORDINAMENTO: Raggruppa tutto per area stanza automaticamente
+    # ⚠️ QUESTO È IL TRUCCO: Ordina automaticamente per area!
+    # Così vedrai prima tutti gli oggetti 'Mano', poi tutti i 'Medicinali', ecc.
     column_default_sort = "area_stanza" 
     
     column_searchable_list = [Inventario.materiale]
@@ -139,7 +117,7 @@ class PazienteAdmin(ModelView, model=Paziente):
         Paziente.visita_medica, Paziente.data_visita, 
         Paziente.disdetto, Paziente.data_disdetta
     ]
-
+    
     @action(name="segna_disdetto", label="❌ Segna come Disdetto", confirmation_message="Confermi?")
     def action_disdetto(self, request: Request):
         pks = request.query_params.get("pks", "").split(",")
@@ -154,7 +132,7 @@ class PazienteAdmin(ModelView, model=Paziente):
             session.commit()
         return RedirectResponse(request.url_for("admin:list", identity="paziente"), status_code=303)
 
-# --- ALTRE VISTE ---
+# --- ALTRE SEZIONI ---
 class PrestitoAdmin(ModelView, model=Prestito):
     name = "Prestito"
     name_plural = "Prestiti"
@@ -201,4 +179,4 @@ def import_pazienti(lista_pazienti: List[PazienteImport]):
 
 @app.get("/")
 def home():
-    return {"msg": "Gestionale Focus Rehab - Riparato"}
+    return {"msg": "Gestionale Focus Rehab - Stabile"}
