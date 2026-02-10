@@ -3,7 +3,7 @@ from datetime import date
 from sqlmodel import SQLModel, Field, Relationship
 from enum import Enum
 
-# --- ENUMS ---
+# --- CATEGORIE (ENUMS) ---
 class AreaEnum(str, Enum):
     MANO = "Mano-Polso"
     COLONNA = "Colonna"
@@ -50,6 +50,7 @@ class Prestito(SQLModel, table=True):
     oggetto: str
     area: AreaPrestito = Field(default=AreaPrestito.OGGETTI)
     
+    # Relazione col Paziente
     paziente_id: Optional[int] = Field(default=None, foreign_key="pazienti_visite_v2.id")
     paziente: Optional[Paziente] = Relationship()
 
@@ -58,14 +59,14 @@ class Prestito(SQLModel, table=True):
     data_scadenza: Optional[date] = None 
     restituito: bool = False
 
-# --- PREVENTIVO (Versione Base, solo per non rompere il DB esistente) ---
+# --- PREVENTIVO (Versione Base Sicura) ---
 class Preventivo(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     paziente: str
     totale: float
     data_creazione: date = Field(default_factory=date.today)
 
-# --- SCADENZE ---
+# --- SCADENZARIO ---
 class Scadenza(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     descrizione: str
