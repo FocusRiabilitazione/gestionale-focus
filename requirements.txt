@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+sqlmodel
+psycopg2-binary
+sqladmin
+asyncpg
+python-multipart
+itsdangerous
+email-validator
+requests
