@@ -1,20 +1,17 @@
 from typing import Optional
 from datetime import date
-from sqlmodel import SQLModel, Field, Relationship
+from sqlmodel import SQLModel, Field
 
 # --- ANAGRAFICA PAZIENTI ---
 class Paziente(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     
-    # Campi Obbligatori (senza Optional)
+    # Campi Obbligatori
     nome: str
     cognome: str
-    area: str  # Sarà un menu a tendina
+    area: str  # Menu a tendina
     
-    # Campi Facoltativi
-    telefono: Optional[str] = None
-    email: Optional[str] = None
-    codice_fiscale: Optional[str] = None
+    # Campi Facoltativi (Note è l'unico rimasto)
     note: Optional[str] = None
     
     # Stati (Gestiti dai pulsanti)
