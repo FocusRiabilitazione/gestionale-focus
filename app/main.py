@@ -1,22 +1,13 @@
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request
 from sqladmin import Admin, ModelView, action
-from sqlmodel import SQLModel, Session
+from sqlmodel import SQLModel 
 from datetime import date
 from starlette.responses import RedirectResponse
-from pydantic import BaseModel
-from typing import List
 
 from .database import engine, init_db
 from .models import Paziente, Inventario, Prestito, Preventivo, Scadenza
 
 app = FastAPI(title="Gestionale Focus Rehab")
-
-# --- STRUTTURA PER IMPORTAZIONE MASSIVA ---
-# Serve per leggere il file JSON con i 200 pazienti
-class PazienteImport(BaseModel):
-    nome: str
-    cognome: str
-    area: str 
 
 # --- CONFIGURAZIONE PAZIENTI ---
 class PazienteAdmin(ModelView, model=Paziente):
@@ -24,7 +15,7 @@ class PazienteAdmin(ModelView, model=Paziente):
     name_plural = "Pazienti"
     icon = "fa-solid fa-user-injured"
     
-    # 1. ESTETICA: Mantiene la spunta verde (niente X rossa brutta)
+    # 1. ESTETICA: VIA LA "X" ROSSA
     column_formatters = {
         Paziente.disdetto: lambda m, a: "✅" if m.disdetto else ""
     }
@@ -48,10 +39,19 @@ class PazienteAdmin(ModelView, model=Paziente):
         Paziente.data_disdetta
     ]
 
-    # NOTA: Ho rimosso 'on_model_change'.
-    # Ora la gestione della data nella scheda è totalmente manuale (come volevi).
+    # 2. LOGICA AUTOMATICA (SALVATAGGIO)
+    # ⚠️ QUI ERA L'ERRORE: Ho rimesso 'async' perché SQLAdmin lo pretende qui.
+    async def on_model_change(self, data, model, is_created, request):
+        # A. Se metti la spunta ma scordi la data -> Mette OGGI
+        if model.disdetto is True and not model.data_disdetta:
+            model.data_disdetta = date.today()
+            
+        # B. Se TOGLI la spunta (il paziente torna attivo) -> Cancella la data!
+        if model.disdetto is False:
+            model.data_disdetta = None
 
-    # 2. AZIONE TASTO DISDETTA (Comoda per la lista)
+    # 3. AZIONE TASTO DISDETTA (MASSIVA)
+    # Qui invece 'async' NON serve, altrimenti il redirect si inceppa.
     @action(
         name="segna_disdetto",
         label="❌ Segna come Disdetto",
@@ -59,6 +59,7 @@ class PazienteAdmin(ModelView, model=Paziente):
     )
     def action_disdetto(self, request: Request):
         pks = request.query_params.get("pks", "").split(",")
+        
         with self.session_maker() as session:
             for pk in pks:
                 if pk.isdigit():
@@ -68,6 +69,8 @@ class PazienteAdmin(ModelView, model=Paziente):
                         model.data_disdetta = date.today()
                         session.add(model)
             session.commit()
+
+        # Ricarica la pagina per mostrare le modifiche
         return RedirectResponse(request.url_for("admin:list", identity="paziente"), status_code=303)
 
 # --- ALTRE VISTE ---
@@ -107,26 +110,6 @@ admin.add_view(ScadenzaAdmin)
 def on_startup():
     init_db()
 
-# --- IMPORTAZIONE RAPIDA (PER I 200 PAZIENTI) ---
-@app.post("/import-rapido")
-def import_pazienti(lista_pazienti: List[PazienteImport]):
-    try:
-        count = 0
-        with Session(engine) as session:
-            for p in lista_pazienti:
-                # Crea il paziente
-                nuovo = Paziente(
-                    nome=p.nome, 
-                    cognome=p.cognome, 
-                    area=p.area
-                )
-                session.add(nuovo)
-                count += 1
-            session.commit()
-        return {"messaggio": f"Fatto! Importati {count} pazienti correttamente."}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
 @app.get("/")
 def home():
-    return {"msg": "Gestionale Focus Rehab - Pronto per Import"}
+    return {"msg": "Gestionale Focus Rehab - Versione Corretta"}
