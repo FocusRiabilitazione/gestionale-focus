@@ -27,6 +27,7 @@ def aumenta_quantita(request: Request, pk: int):
             item.quantita += 1
             session.add(item)
             session.commit()
+    # Torna alla pagina precedente
     return RedirectResponse(request.headers.get("referer"), status_code=303)
 
 @app.get("/magazzino/meno/{pk}")
@@ -39,36 +40,44 @@ def diminuisci_quantita(request: Request, pk: int):
             session.commit()
     return RedirectResponse(request.headers.get("referer"), status_code=303)
 
-# --- FORMATTAZIONE VISIVA (Semaforo e Badge Area) ---
+# --- FORMATTAZIONE VISIVA SICURA (Anticrash) ---
 
-# 1. Colori per le Aree (Etichette visive)
 def formatta_area(model, attribute):
-    area = model.area_stanza.value
-    colore = "gray" # Default
+    # 1. Recuperiamo il valore in modo sicuro (gestisce sia Enum che stringhe)
+    valore_grezzo = getattr(model, "area_stanza", "Altro")
+    area = "Altro"
     
-    # Assegniamo un colore per ogni reparto
+    if hasattr(valore_grezzo, "value"):
+        area = valore_grezzo.value # È un Enum
+    else:
+        area = str(valore_grezzo) # È una stringa o altro
+        
+    # 2. Assegniamo i colori
+    colore = "gray" 
     if area == "Mano": colore = "#3498db"        # Blu
     elif area == "Medicinali": colore = "#e74c3c" # Rosso
     elif area == "Pulizie": colore = "#f1c40f"    # Giallo
     elif area == "Segreteria": colore = "#9b59b6" # Viola
     elif area == "Stanze": colore = "#2ecc71"     # Verde
     
-    # Crea un'etichetta colorata (Badge)
+    # 3. Disegniamo l'etichetta
     html = f'<span style="background-color:{colore}; color:white; padding:4px 8px; border-radius:12px; font-size:0.85em; font-weight:bold;">{area}</span>'
     return Markup(html)
 
-# 2. Semaforo + Pulsanti
 def formatta_quantita(model, attribute):
+    # Controlli di sicurezza per evitare crash su valori None
+    q = model.quantita if model.quantita is not None else 0
+    soglia = model.soglia_minima if model.soglia_minima is not None else 0
+    obiett = model.obiettivo if model.obiettivo is not None else 0
+    
     stato = ""
-    # Icona Stato
-    if model.quantita <= model.soglia_minima:
-        stato = f"🔴 {model.quantita} (ORDINA!)"
-    elif model.quantita >= model.obiettivo:
-        stato = f"🌟 {model.quantita} (Pieno)"
+    if q <= soglia:
+        stato = f"🔴 {q} (ORDINA!)"
+    elif q >= obiett:
+        stato = f"🌟 {q} (Pieno)"
     else:
-        stato = f"✅ {model.quantita} (Ok)"
+        stato = f"✅ {q} (Ok)"
         
-    # Pulsanti
     style = "text-decoration:none; border:1px solid #ccc; padding:2px 7px; border-radius:4px; margin:0 3px; background:#fff; font-weight:bold; color:#333;"
     btn_meno = f'<a href="/magazzino/meno/{model.id}" style="{style}">-</a>'
     btn_piu = f'<a href="/magazzino/piu/{model.id}" style="{style}">+</a>'
@@ -76,13 +85,12 @@ def formatta_quantita(model, attribute):
     return Markup(f"{btn_meno} {stato} {btn_piu}")
 
 
-# --- CONFIGURAZIONE VISUALIZZAZIONE MAGAZZINO ---
+# --- MAGAZZINO ---
 class InventarioAdmin(ModelView, model=Inventario):
     name = "Magazzino"
     name_plural = "Magazzino"
     icon = "fa-solid fa-boxes-stacked"
     
-    # Applichiamo le formattazioni personalizzate
     column_formatters = {
         Inventario.quantita: formatta_quantita,
         Inventario.area_stanza: formatta_area
@@ -90,16 +98,15 @@ class InventarioAdmin(ModelView, model=Inventario):
 
     column_list = [
         Inventario.materiale, 
-        Inventario.area_stanza,  # Ora appare colorata!
+        Inventario.area_stanza, 
         Inventario.quantita, 
         Inventario.soglia_minima, 
         Inventario.obiettivo
     ]
     
-    # ORDINAMENTO AUTOMATICO: Raggruppa per stanza
+    # ORDINAMENTO: Raggruppa tutto per area stanza automaticamente
     column_default_sort = "area_stanza" 
     
-    # Filtri potenti: Cerca materiale o filtra per stanza
     column_searchable_list = [Inventario.materiale]
     column_filters = [Inventario.area_stanza]
 
@@ -111,7 +118,7 @@ class InventarioAdmin(ModelView, model=Inventario):
         Inventario.obiettivo
     ]
 
-# --- ALTRE SEZIONI (Standard) ---
+# --- PAZIENTI ---
 class PazienteAdmin(ModelView, model=Paziente):
     name = "Paziente"
     name_plural = "Pazienti"
@@ -132,7 +139,7 @@ class PazienteAdmin(ModelView, model=Paziente):
         Paziente.visita_medica, Paziente.data_visita, 
         Paziente.disdetto, Paziente.data_disdetta
     ]
-    
+
     @action(name="segna_disdetto", label="❌ Segna come Disdetto", confirmation_message="Confermi?")
     def action_disdetto(self, request: Request):
         pks = request.query_params.get("pks", "").split(",")
@@ -147,6 +154,7 @@ class PazienteAdmin(ModelView, model=Paziente):
             session.commit()
         return RedirectResponse(request.url_for("admin:list", identity="paziente"), status_code=303)
 
+# --- ALTRE VISTE ---
 class PrestitoAdmin(ModelView, model=Prestito):
     name = "Prestito"
     name_plural = "Prestiti"
@@ -168,7 +176,7 @@ class ScadenzaAdmin(ModelView, model=Scadenza):
 # --- ATTIVAZIONE ---
 admin = Admin(app, engine)
 admin.add_view(PazienteAdmin)
-admin.add_view(InventarioAdmin) # Solo una voce, pulita
+admin.add_view(InventarioAdmin)
 admin.add_view(PrestitoAdmin)
 admin.add_view(PreventivoAdmin)
 admin.add_view(ScadenzaAdmin)
@@ -193,4 +201,4 @@ def import_pazienti(lista_pazienti: List[PazienteImport]):
 
 @app.get("/")
 def home():
-    return {"msg": "Gestionale Focus Rehab - Magazzino Unico e Colorato"}
+    return {"msg": "Gestionale Focus Rehab - Riparato"}
