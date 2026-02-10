@@ -5,12 +5,26 @@ from sqlmodel import SQLModel, Field
 # --- ANAGRAFICA PAZIENTI ---
 class Paziente(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
+    
+    # Dati Base
     nome: str
     cognome: str
-    area: str  # Es: "Mano-Polso", "Colonna"
+    codice_fiscale: Optional[str] = None  # Utile per fatture
+    
+    # Contatti
     telefono: Optional[str] = None
+    email: Optional[str] = None
+    
+    # Gestione Clinica
+    area: str = "Altro" # Es: "Mano", "Colonna", "ATM"
+    
+    # Stati (Flag)
     disdetto: bool = False
     data_disdetta: Optional[date] = None
+    
+    visita_esterna: bool = False
+    data_visita: Optional[date] = None
+    
     note: Optional[str] = None
 
 # --- MAGAZZINO ---
@@ -48,3 +62,4 @@ class Scadenza(SQLModel, table=True):
     data_scadenza: date
     pagato: bool = False
     ricorrenza: str = "Singola"
+
