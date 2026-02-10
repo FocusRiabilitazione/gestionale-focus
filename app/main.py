@@ -1,6 +1,5 @@
 from fastapi import FastAPI, Request
 from sqladmin import Admin, ModelView, action
-from wtforms import SelectField
 from sqlmodel import SQLModel 
 from datetime import date
 
@@ -9,58 +8,29 @@ from .models import Paziente, Inventario, Prestito, Preventivo, Scadenza
 
 app = FastAPI(title="Gestionale Focus Rehab")
 
-# --- CONFIGURAZIONE PAZIENTI ---
+# --- CONFIGURAZIONE PAZIENTI (Versione BASE Sicura) ---
 class PazienteAdmin(ModelView, model=Paziente):
     name = "Paziente"
     name_plural = "Pazienti"
     icon = "fa-solid fa-user-injured"
     
-    # Colonne visibili nella lista
+    # Lista semplice
     column_list = [
         Paziente.cognome, 
         Paziente.nome, 
-        Paziente.area, 
-        Paziente.note,
-        Paziente.disdetto,
-        Paziente.data_disdetta
+        Paziente.area,
+        Paziente.disdetto
     ]
     
-    column_searchable_list = [Paziente.cognome, Paziente.nome]
-    column_filters = [Paziente.area, Paziente.disdetto]
-    column_default_sort = ("cognome", False)
-
-    # Menu a tendina per Area (Obbligatorio)
-    form_overrides = dict(area=SelectField)
-    form_args = dict(area=dict(
-        choices=["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico"],
-        label="Area di Competenza"
-    ))
-
-    # Form di inserimento (Pulito)
+    # Form semplice (Senza menu a tendina per ora, per testare se funziona)
     form_columns = [
-        Paziente.nome, Paziente.cognome, Paziente.area,
+        Paziente.nome, 
+        Paziente.cognome, 
+        Paziente.area,
         Paziente.note,
-        Paziente.disdetto, Paziente.data_disdetta
+        Paziente.disdetto, 
+        Paziente.data_disdetta
     ]
-
-    # AZIONE AUTOMATICA "DISDETTA"
-    @action(
-        name="segna_disdetto",
-        label="❌ Segna come Disdetto",
-        confirmation_message="Confermi che questo paziente ha disdetto? Verrà inserita la data di oggi."
-    )
-    async def action_disdetto(self, request: Request):
-        pks = request.query_params.get("pks", "").split(",")
-        if pks:
-            with self.session_maker() as session:
-                for pk in pks:
-                    model = session.get(Paziente, int(pk))
-                    if model:
-                        model.disdetto = True
-                        model.data_disdetta = date.today()
-                        session.add(model)
-                session.commit()
-        return
 
 # --- ALTRE VISTE ---
 class InventarioAdmin(ModelView, model=Inventario):
@@ -102,13 +72,3 @@ def on_startup():
 @app.get("/")
 def home():
     return {"msg": "Gestionale Focus Rehab Attivo"}
-
-# --- 🚨 LINK PER RESETTARE IL DATABASE SE SI BLOCCA ---
-@app.get("/reset-db-force")
-def reset_db_force():
-    try:
-        SQLModel.metadata.drop_all(engine)
-        SQLModel.metadata.create_all(engine)
-        return {"status": "TUTTO RESETTATO. Ora il database è pulito e nuovo."}
-    except Exception as e:
-        return {"error": str(e)}
