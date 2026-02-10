@@ -116,7 +116,15 @@ class PrestitoAdmin(ModelView, model=Prestito):
     async def on_model_change(self, data, model, is_created, request):
         if model.data_inizio and model.durata_giorni: model.data_scadenza = model.data_inizio + timedelta(days=model.durata_giorni)
 
-# --- 4. PREVENTIVI ---
+# --- 4. LISTINO PREZZI (Fondamentale per i Preventivi) ---
+class TrattamentoAdmin(ModelView, model=Trattamento):
+    name = "Listino Prezzi"
+    name_plural = "Listino"
+    icon = "fa-solid fa-tags"
+    column_list = [Trattamento.area, Trattamento.nome, Trattamento.prezzo_base]
+    form_columns = [Trattamento.nome, Trattamento.area, Trattamento.prezzo_base]
+
+# --- 5. PREVENTIVI ---
 class RigaPreventivoInline(ModelView, model=RigaPreventivo):
     column_list = [RigaPreventivo.trattamento, RigaPreventivo.quantita, RigaPreventivo.sconto]
 
@@ -124,22 +132,15 @@ class PreventivoAdmin(ModelView, model=Preventivo):
     name = "Preventivo"
     name_plural = "Preventivi"
     icon = "fa-solid fa-file-invoice-dollar"
-    inlines = [RigaPreventivoInline] # TABELLA INTERNA ATTIVA
+    inlines = [RigaPreventivoInline] 
 
     column_list = [Preventivo.data_creazione, Preventivo.paziente_rel, Preventivo.area_intervento, Preventivo.totale]
-    
-    # Qui scegli l'area solo come info, poi sotto aggiungi i trattamenti
     form_columns = [Preventivo.paziente_rel, Preventivo.area_intervento, Preventivo.data_creazione, Preventivo.descrizione, Preventivo.accettato]
 
     # CALCOLO TOTALE AL SALVATAGGIO
-    async def on_model_change(self, data, model, is_created, request):
-        # Questo calcola il totale sommando le righe esistenti
-        pass 
-    
     async def after_model_change(self, data, model, is_created, request):
         # Ricalcolo preciso dopo il salvataggio
         with Session(engine) as session:
-            # Ricarichiamo il preventivo con le righe
             stmt = select(Preventivo).where(Preventivo.id == model.id)
             prev = session.exec(stmt).first()
             if prev and prev.righe:
@@ -170,7 +171,7 @@ class PreventivoAdmin(ModelView, model=Preventivo):
             session.commit()
         return RedirectResponse(request.url_for("admin:list", identity="preventivo"), status_code=303)
 
-# --- 5. SCADENZE ---
+# --- 6. SCADENZE ---
 class ScadenzaAdmin(ModelView, model=Scadenza):
     name="Scadenza"; name_plural="Scadenzario"; icon="fa-solid fa-calendar"
     column_list=[Scadenza.descrizione, Scadenza.data_scadenza, Scadenza.importo]
@@ -180,7 +181,7 @@ admin = Admin(app, engine)
 admin.add_view(PazienteAdmin)
 admin.add_view(InventarioAdmin)
 admin.add_view(PrestitoAdmin)
-# admin.add_view(TrattamentoAdmin) <--- RIMOSSO PER NASCONDERLO DALLA BARRA
+admin.add_view(TrattamentoAdmin) # HO RIATTIVATO QUESTO!
 admin.add_view(PreventivoAdmin)
 admin.add_view(ScadenzaAdmin)
 
