@@ -1,27 +1,42 @@
-from fastapi import FastAPI
-from sqladmin import Admin, ModelView
+from fastapi import FastAPI, Request
+from sqladmin import Admin, ModelView, action
 from sqlmodel import SQLModel 
+from datetime import date
 
 from .database import engine, init_db
 from .models import Paziente, Inventario, Prestito, Preventivo, Scadenza
 
 app = FastAPI(title="Gestionale Focus Rehab")
 
-# --- CONFIGURAZIONE PAZIENTI (MINIMALE E SICURA) ---
+# --- CONFIGURAZIONE PAZIENTI ---
 class PazienteAdmin(ModelView, model=Paziente):
     name = "Paziente"
     name_plural = "Pazienti"
     icon = "fa-solid fa-user-injured"
     
-    # SOLO LA LISTA SEMPLICE - Niente ricerca, niente filtri per ora
+    # Cosa vedi nella lista
     column_list = [
         Paziente.cognome, 
         Paziente.nome, 
         Paziente.area,
-        Paziente.disdetto
+        Paziente.disdetto,
+        Paziente.data_disdetta
     ]
     
-    # Form semplice
+    # --- 1. MENU A TENDINA (Metodo Sicuro) ---
+    form_args = dict(
+        area=dict(
+            choices=[
+                ("Mano-Polso", "Mano-Polso"),
+                ("Colonna", "Colonna"),
+                ("ATM", "ATM"),
+                ("Muscolo-Scheletrico", "Muscolo-Scheletrico")
+            ],
+            label="Area di Competenza"
+        )
+    )
+
+    # Ordine campi nel form di inserimento
     form_columns = [
         Paziente.nome, 
         Paziente.cognome, 
@@ -31,7 +46,26 @@ class PazienteAdmin(ModelView, model=Paziente):
         Paziente.data_disdetta
     ]
 
-# --- ALTRE VISTE ---
+    # --- 2. TASTO DISDETTA ---
+    @action(
+        name="segna_disdetto",
+        label="❌ Segna come Disdetto",
+        confirmation_message="Confermi la disdetta? Verrà inserita la data di oggi."
+    )
+    async def action_disdetto(self, request: Request):
+        pks = request.query_params.get("pks", "").split(",")
+        if pks and pks != ['']:
+            with self.session_maker() as session:
+                for pk in pks:
+                    model = session.get(Paziente, int(pk))
+                    if model:
+                        model.disdetto = True
+                        model.data_disdetta = date.today()
+                        session.add(model)
+                session.commit()
+        return
+
+# --- ALTRE VISTE (Standard) ---
 class InventarioAdmin(ModelView, model=Inventario):
     name = "Articolo"
     name_plural = "Magazzino"
@@ -70,4 +104,4 @@ def on_startup():
 
 @app.get("/")
 def home():
-    return {"msg": "Gestionale Focus Rehab - Versione Base"}
+    return {"msg": "Gestionale Focus Rehab - Completo"}
