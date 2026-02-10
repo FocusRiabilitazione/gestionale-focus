@@ -8,4 +8,3 @@ python-multipart
 itsdangerous
 email-validator
 requests
-wtforms
