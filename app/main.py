@@ -1,31 +1,102 @@
-from fastapi import FastAPI
-from sqladmin import Admin, ModelView
-from sqlmodel import SQLModel
+from fastapi import FastAPI, Request
+from sqladmin import Admin, ModelView, action
+from sqlmodel import SQLModel 
+from datetime import date
 
 from .database import engine, init_db
 from .models import Paziente, Inventario, Prestito, Preventivo, Scadenza
 
 app = FastAPI(title="Gestionale Focus Rehab")
 
-# --- DEFINIZIONE VISTE (SENZA ERRORI) ---
-# Non metto icone o cose strane, solo il modello base.
-
+# --- 1. CONFIGURAZIONE PAZIENTI (COMPLETA) ---
 class PazienteAdmin(ModelView, model=Paziente):
-    column_list = [Paziente.cognome, Paziente.nome, Paziente.area, Paziente.disdetto]
+    # Nomi e Icone
+    name = "Paziente"
+    name_plural = "Pazienti" # <--- Ecco che togliamo la 's'
+    icon = "fa-solid fa-user-injured"
+    
+    # Colonne visibili
+    column_list = [
+        Paziente.cognome, 
+        Paziente.nome, 
+        Paziente.area,
+        Paziente.disdetto,
+        Paziente.data_disdetta
+    ]
+    
+    # Ricerca e Filtri
+    column_searchable_list = [Paziente.cognome, Paziente.nome]
+    column_filters = [Paziente.area, Paziente.disdetto]
+
+    # MENU A TENDINA (Metodo Sicuro che non rompe il DB)
+    form_args = dict(
+        area=dict(
+            choices=[
+                ("Mano-Polso", "Mano-Polso"),
+                ("Colonna", "Colonna"),
+                ("ATM", "ATM"),
+                ("Muscolo-Scheletrico", "Muscolo-Scheletrico")
+            ],
+            label="Area di Competenza"
+        )
+    )
+
+    # Ordine campi nel form
+    form_columns = [
+        Paziente.nome, 
+        Paziente.cognome, 
+        Paziente.area,
+        Paziente.note,
+        Paziente.disdetto, 
+        Paziente.data_disdetta
+    ]
+
+    # AZIONE RAPIDA DISDETTA
+    @action(
+        name="segna_disdetto",
+        label="❌ Segna come Disdetto",
+        confirmation_message="Confermi la disdetta? Verrà inserita la data di oggi."
+    )
+    async def action_disdetto(self, request: Request):
+        pks = request.query_params.get("pks", "").split(",")
+        if pks and pks != ['']:
+            with self.session_maker() as session:
+                for pk in pks:
+                    model = session.get(Paziente, int(pk))
+                    if model:
+                        model.disdetto = True
+                        model.data_disdetta = date.today()
+                        session.add(model)
+                session.commit()
+        return
+
+# --- 2. ALTRE VISTE (Con Nomi Italiani e Icone) ---
 
 class InventarioAdmin(ModelView, model=Inventario):
-    column_list = [Inventario.materiale, Inventario.quantita]
+    name = "Articolo"
+    name_plural = "Magazzino"
+    icon = "fa-solid fa-box"
+    column_list = [Inventario.materiale, Inventario.quantita, Inventario.area_stanza]
 
 class PrestitoAdmin(ModelView, model=Prestito):
-    column_list = [Prestito.paziente_nome, Prestito.oggetto]
+    name = "Prestito"
+    name_plural = "Prestiti"
+    icon = "fa-solid fa-hand-holding"
+    column_list = [Prestito.oggetto, Prestito.paziente_nome, Prestito.restituito]
 
 class PreventivoAdmin(ModelView, model=Preventivo):
-    column_list = [Preventivo.paziente, Preventivo.totale]
+    name = "Preventivo"
+    name_plural = "Preventivi"
+    icon = "fa-solid fa-file-invoice-dollar"
+    column_list = [Preventivo.data_creazione, Preventivo.paziente, Preventivo.totale]
 
 class ScadenzaAdmin(ModelView, model=Scadenza):
-    column_list = [Scadenza.descrizione, Scadenza.data_scadenza]
+    name = "Scadenza"
+    name_plural = "Scadenzario"
+    icon = "fa-solid fa-calendar"
+    column_list = [Scadenza.descrizione, Scadenza.data_scadenza, Scadenza.importo]
 
-# --- ATTIVAZIONE ---
+# --- 3. ATTIVAZIONE ---
 admin = Admin(app, engine)
 admin.add_view(PazienteAdmin)
 admin.add_view(InventarioAdmin)
@@ -39,4 +110,4 @@ def on_startup():
 
 @app.get("/")
 def home():
-    return {"msg": "Gestionale ATTIVO - Modalità Sicura"}
+    return {"msg": "Gestionale Focus Rehab Attivo"}
