@@ -1,6 +1,5 @@
 from fastapi import FastAPI, Request
 from sqladmin import Admin, ModelView, action
-from wtforms import SelectField # Serve per il menu a tendina
 from sqlmodel import SQLModel 
 from datetime import date
 
@@ -9,13 +8,12 @@ from .models import Paziente, Inventario, Prestito, Preventivo, Scadenza
 
 app = FastAPI(title="Gestionale Focus Rehab")
 
-# --- CONFIGURAZIONE PAZIENTI (COMPLETA) ---
+# --- CONFIGURAZIONE PAZIENTI ---
 class PazienteAdmin(ModelView, model=Paziente):
     name = "Paziente"
     name_plural = "Pazienti"
     icon = "fa-solid fa-user-injured"
     
-    # Colonne visibili nella lista
     column_list = [
         Paziente.cognome, 
         Paziente.nome, 
@@ -25,26 +23,21 @@ class PazienteAdmin(ModelView, model=Paziente):
         Paziente.data_disdetta
     ]
     
-    # Barra di Ricerca e Filtri
     column_searchable_list = [Paziente.cognome, Paziente.nome]
     column_filters = [Paziente.area, Paziente.disdetto]
     column_default_sort = ("cognome", False)
 
-    # --- 1. MENU A TENDINA PER L'AREA ---
-    form_overrides = dict(area=SelectField)
-    form_args = dict(area=dict(
-        choices=["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico"],
-        label="Area di Competenza"
-    ))
-
-    # Ordine campi nel form
+    # Form semplice (Senza menu a tendina per ora, per sicurezza)
     form_columns = [
-        Paziente.nome, Paziente.cognome, Paziente.area,
+        Paziente.nome, 
+        Paziente.cognome, 
+        Paziente.area,
         Paziente.note,
-        Paziente.disdetto, Paziente.data_disdetta
+        Paziente.disdetto, 
+        Paziente.data_disdetta
     ]
 
-    # --- 2. AZIONE AUTOMATICA DISDETTA ---
+    # AZIONE AUTOMATICA "DISDETTA"
     @action(
         name="segna_disdetto",
         label="❌ Segna come Disdetto",
@@ -52,7 +45,8 @@ class PazienteAdmin(ModelView, model=Paziente):
     )
     async def action_disdetto(self, request: Request):
         pks = request.query_params.get("pks", "").split(",")
-        if pks:
+        # Controllo di sicurezza: verifichiamo che ci siano ID veri
+        if pks and pks != ['']:
             with self.session_maker() as session:
                 for pk in pks:
                     model = session.get(Paziente, int(pk))
@@ -63,7 +57,7 @@ class PazienteAdmin(ModelView, model=Paziente):
                 session.commit()
         return
 
-# --- ALTRE VISTE (Standard) ---
+# --- ALTRE VISTE ---
 class InventarioAdmin(ModelView, model=Inventario):
     name = "Articolo"
     name_plural = "Magazzino"
