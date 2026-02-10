@@ -126,7 +126,7 @@ class PrestitoAdmin(ModelView, model=Prestito):
     async def on_model_change(self, data, model, is_created, request):
         if model.data_inizio and model.durata_giorni: model.data_scadenza = model.data_inizio + timedelta(days=model.durata_giorni)
 
-# --- 4. LISTINO PREZZI (RIATTIVATO) ---
+# --- 4. LISTINO PREZZI ---
 class TrattamentoAdmin(ModelView, model=Trattamento):
     name = "Listino Prezzi"
     name_plural = "Listino Prezzi"
@@ -134,10 +134,10 @@ class TrattamentoAdmin(ModelView, model=Trattamento):
     column_list = [Trattamento.nome, Trattamento.prezzo_base]
     form_columns = [Trattamento.nome, Trattamento.prezzo_base]
 
-# --- 5. PREVENTIVI (CORRETTA LA TABELLA INTERNA) ---
+# --- 5. PREVENTIVI (CORRETTO!!!) ---
 class RigaPreventivoInline(ModelView, model=RigaPreventivo):
     column_list = [RigaPreventivo.trattamento, RigaPreventivo.quantita, RigaPreventivo.sconto]
-    # QUESTA RIGA MANCAVA E FACEVA SPARIRE I CAMPI:
+    # ECCO LA RIGA CHE MANCAVA:
     form_columns = [RigaPreventivo.trattamento, RigaPreventivo.quantita, RigaPreventivo.sconto]
 
 class PreventivoAdmin(ModelView, model=Preventivo):
@@ -145,14 +145,14 @@ class PreventivoAdmin(ModelView, model=Preventivo):
     name_plural = "Preventivi"
     icon = "fa-solid fa-file-invoice-dollar"
     
-    inlines = [RigaPreventivoInline] # Questo abilita la spesa
+    inlines = [RigaPreventivoInline] # Adesso funzionerà
 
     def link_stampa(model, attribute):
-        return Markup(f'<a href="/stampa_preventivo/{model.id}" target="_blank" style="font-size:1.2em;">🖨️</a>')
+        return Markup(f'<a href="/stampa_preventivo/{model.id}" target="_blank" style="font-size:1.2em;">🖨️ STAMPA</a>')
 
     column_formatters = {Preventivo.id: link_stampa}
     column_list = [Preventivo.id, Preventivo.data_creazione, Preventivo.paziente_rel, Preventivo.totale_calcolato]
-    form_columns = [Preventivo.paziente_rel, Preventivo.data_creazione, Preventivo.oggetto, Preventivo.note]
+    form_columns = [Preventivo.paziente_rel, Preventivo.data_creazione, Preventivo.oggetto, Preventivo.note, Preventivo.accettato]
 
     async def after_model_change(self, data, model, is_created, request):
         with Session(engine) as session:
@@ -183,7 +183,7 @@ admin.add_view(ScadenzaAdmin)
 @app.on_event("startup")
 def on_startup(): init_db()
 
-# --- IMPORTATORI (ORIGINALI) ---
+# --- IMPORTATORI ---
 @app.post("/import-rapido")
 def import_pazienti(l: List[PazienteImport]):
     with Session(engine) as s:
