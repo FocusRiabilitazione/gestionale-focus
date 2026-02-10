@@ -5,20 +5,30 @@ from datetime import date
 from starlette.responses import RedirectResponse
 from pydantic import BaseModel
 from typing import List
-from markupsafe import Markup # <--- Serve per disegnare i bottoni
+from markupsafe import Markup
 
 from .database import engine, init_db
 from .models import Paziente, Inventario, Prestito, Preventivo, Scadenza
 
 app = FastAPI(title="Gestionale Focus Rehab")
 
-# --- STRUTTURA IMPORT ---
+# --- STRUTTURE PER IMPORTAZIONE MASSIVA ---
+
+# 1. Per i Pazienti (già c'era)
 class PazienteImport(BaseModel):
     nome: str
     cognome: str
-    area: str 
+    area: str
 
-# --- ENDPOINT RAPIDI PER IL MAGAZZINO (I "Comandi Segreti") ---
+# 2. Per il Magazzino (NUOVO)
+class InventarioImport(BaseModel):
+    materiale: str
+    area_stanza: str  # Es: "Mano", "Medicinali", "Pulizie"
+    quantita: int = 0
+    soglia_minima: int = 2
+    obiettivo: int = 5
+
+# --- ENDPOINT RAPIDI (+ e -) ---
 @app.get("/magazzino/piu/{pk}")
 def aumenta_quantita(request: Request, pk: int):
     with Session(engine) as session:
@@ -27,14 +37,13 @@ def aumenta_quantita(request: Request, pk: int):
             item.quantita += 1
             session.add(item)
             session.commit()
-    # Torna subito alla lista
     return RedirectResponse(request.url_for("admin:list", identity="inventario"), status_code=303)
 
 @app.get("/magazzino/meno/{pk}")
 def diminuisci_quantita(request: Request, pk: int):
     with Session(engine) as session:
         item = session.get(Inventario, pk)
-        if item and item.quantita > 0: # Non scendiamo sotto zero
+        if item and item.quantita > 0:
             item.quantita -= 1
             session.add(item)
             session.commit()
@@ -50,15 +59,12 @@ class PazienteAdmin(ModelView, model=Paziente):
         Paziente.disdetto: lambda m, a: "✅" if m.disdetto else "",
         Paziente.visita_medica: lambda m, a: "🩺" if m.visita_medica else ""
     }
-
     column_list = [
         Paziente.cognome, Paziente.nome, Paziente.area,
         Paziente.visita_medica, Paziente.data_visita,
         Paziente.disdetto, Paziente.data_disdetta
     ]
-    
     column_searchable_list = [Paziente.cognome, Paziente.nome]
-    
     form_columns = [
         Paziente.nome, Paziente.cognome, Paziente.area, Paziente.note,
         Paziente.visita_medica, Paziente.data_visita, 
@@ -79,15 +85,13 @@ class PazienteAdmin(ModelView, model=Paziente):
             session.commit()
         return RedirectResponse(request.url_for("admin:list", identity="paziente"), status_code=303)
 
-# --- MAGAZZINO PRO (Con Bottoni Rapidi) ---
+# --- MAGAZZINO ---
 class InventarioAdmin(ModelView, model=Inventario):
     name = "Articolo"
     name_plural = "Magazzino"
     icon = "fa-solid fa-box"
 
-    # FUNZIONE CHE DISEGNA SEMAFORO + PULSANTI
     def formatta_con_bottoni(model, attribute):
-        # 1. Logica Semaforo
         stato = ""
         if model.quantita <= model.soglia_minima:
             stato = f"🔴 {model.quantita} (ORDINA!)"
@@ -96,16 +100,12 @@ class InventarioAdmin(ModelView, model=Inventario):
         else:
             stato = f"✅ {model.quantita} (Ok)"
             
-        # 2. Creazione Bottoni (Link HTML)
-        # Usiamo uno stile semplice per i bottoni
         style = "text-decoration:none; border:1px solid #ccc; padding:2px 6px; border-radius:4px; margin:0 2px; background:#f9f9f9;"
         btn_meno = f'<a href="/magazzino/meno/{model.id}" style="{style}">➖</a>'
         btn_piu = f'<a href="/magazzino/piu/{model.id}" style="{style}">➕</a>'
         
-        # 3. Restituisce tutto insieme come HTML sicuro
         return Markup(f"{btn_meno} &nbsp; <b>{stato}</b> &nbsp; {btn_piu}")
 
-    # Applichiamo la formattazione
     column_formatters = {
         Inventario.quantita: formatta_con_bottoni
     }
@@ -157,6 +157,7 @@ admin.add_view(ScadenzaAdmin)
 def on_startup():
     init_db()
 
+# --- IMPORTAZIONE PAZIENTI ---
 @app.post("/import-rapido")
 def import_pazienti(lista_pazienti: List[PazienteImport]):
     try:
@@ -171,6 +172,27 @@ def import_pazienti(lista_pazienti: List[PazienteImport]):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+# --- IMPORTAZIONE MAGAZZINO (NUOVO) ---
+@app.post("/import-magazzino")
+def import_magazzino(lista_articoli: List[InventarioImport]):
+    try:
+        count = 0
+        with Session(engine) as session:
+            for item in lista_articoli:
+                nuovo = Inventario(
+                    materiale=item.materiale,
+                    area_stanza=item.area_stanza,
+                    quantita=item.quantita,
+                    soglia_minima=item.soglia_minima,
+                    obiettivo=item.obiettivo
+                )
+                session.add(nuovo)
+                count += 1
+            session.commit()
+        return {"messaggio": f"Fatto! Importati {count} articoli in magazzino."}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 @app.get("/")
 def home():
-    return {"msg": "Gestionale Focus Rehab - Magazzino Interattivo"}
+    return {"msg": "Gestionale Focus Rehab - Importatore Magazzino Attivo"}
