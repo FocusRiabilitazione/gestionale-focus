@@ -1,9 +1,9 @@
 from typing import Optional
 from datetime import date
 from sqlmodel import SQLModel, Field
-from enum import Enum  # <--- Importiamo Enum per fare il menu nativo
+from enum import Enum
 
-# 1. DEFINIAMO LE SCELTE QUI (Non nel main)
+# --- DEFINIZIONE MENU A TENDINA ---
 class AreaEnum(str, Enum):
     MANO = "Mano-Polso"
     COLONNA = "Colonna"
@@ -12,30 +12,34 @@ class AreaEnum(str, Enum):
 
 # --- ANAGRAFICA PAZIENTI ---
 class Paziente(SQLModel, table=True):
-    # Usiamo un nome nuovo per garantire che il DB crei il tipo Enum corretto
-    __tablename__ = "pazienti_auto" 
+    # Cambio nome per forzare l'aggiunta delle nuove colonne
+    __tablename__ = "pazienti_visite_v1" 
     
     id: Optional[int] = Field(default=None, primary_key=True)
     nome: str
     cognome: str
     
-    # 2. COLLEGHIAMO IL MENU
-    # Dicendo che 'area' è di tipo 'AreaEnum', il menu appare da solo!
-    area: AreaEnum 
+    # Menu a tendina nativo
+    area: AreaEnum = Field(default=AreaEnum.MUSCOLO)
     
     note: Optional[str] = None
+    
+    # DISDETTE
     disdetto: bool = False
     data_disdetta: Optional[date] = None
     
-    visita_esterna: bool = False
+    # NUOVI CAMPI: VISITE MEDICHE (Manuale)
+    visita_medica: bool = Field(default=False, description="Deve fare una visita?")
     data_visita: Optional[date] = None
 
-# --- ALTRE TABELLE (Uguali a prima) ---
+# --- ALTRE TABELLE (INVARIATE) ---
 class Inventario(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     materiale: str
     quantita: int = 0
     area_stanza: str 
+    obiettivo: int = 5
+    soglia_minima: int = 2
 
 class Prestito(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
