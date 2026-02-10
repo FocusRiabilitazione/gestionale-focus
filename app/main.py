@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request
 from sqladmin import Admin, ModelView, action
 from wtforms import SelectField
-from sqlmodel import SQLModel # Importante per il reset
+from sqlmodel import SQLModel 
 from datetime import date
 
 from .database import engine, init_db
@@ -15,34 +15,39 @@ class PazienteAdmin(ModelView, model=Paziente):
     name_plural = "Pazienti"
     icon = "fa-solid fa-user-injured"
     
+    # Colonne visibili nella lista
     column_list = [
         Paziente.cognome, 
         Paziente.nome, 
         Paziente.area, 
         Paziente.note,
-        Paziente.disdetto
+        Paziente.disdetto,
+        Paziente.data_disdetta
     ]
     
     column_searchable_list = [Paziente.cognome, Paziente.nome]
     column_filters = [Paziente.area, Paziente.disdetto]
     column_default_sort = ("cognome", False)
 
+    # Menu a tendina per Area (Obbligatorio)
     form_overrides = dict(area=SelectField)
     form_args = dict(area=dict(
         choices=["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico"],
         label="Area di Competenza"
     ))
 
+    # Form di inserimento (Pulito)
     form_columns = [
         Paziente.nome, Paziente.cognome, Paziente.area,
         Paziente.note,
         Paziente.disdetto, Paziente.data_disdetta
     ]
 
+    # AZIONE AUTOMATICA "DISDETTA"
     @action(
         name="segna_disdetto",
         label="❌ Segna come Disdetto",
-        confirmation_message="Confermi la disdetta?"
+        confirmation_message="Confermi che questo paziente ha disdetto? Verrà inserita la data di oggi."
     )
     async def action_disdetto(self, request: Request):
         pks = request.query_params.get("pks", "").split(",")
@@ -82,7 +87,7 @@ class ScadenzaAdmin(ModelView, model=Scadenza):
     column_list = [Scadenza.data_scadenza, Scadenza.descrizione, Scadenza.importo, Scadenza.pagato]
     icon = "fa-solid fa-calendar"
 
-# Admin Setup
+# Attivazione Admin
 admin = Admin(app, engine)
 admin.add_view(PazienteAdmin)
 admin.add_view(InventarioAdmin)
@@ -96,16 +101,14 @@ def on_startup():
 
 @app.get("/")
 def home():
-    return {"msg": "Gestionale Attivo. Vai su /admin"}
+    return {"msg": "Gestionale Focus Rehab Attivo"}
 
-# --- 🚨 IL LINK MAGICO DI RESET 🚨 ---
-@app.get("/reset-totale-database")
-def reset_db():
+# --- 🚨 LINK PER RESETTARE IL DATABASE SE SI BLOCCA ---
+@app.get("/reset-db-force")
+def reset_db_force():
     try:
-        # Cancella tutto
         SQLModel.metadata.drop_all(engine)
-        # Ricrea tutto pulito
         SQLModel.metadata.create_all(engine)
-        return {"status": "SUCCESS! Database resettato e pulito. Ora puoi usare /admin"}
+        return {"status": "TUTTO RESETTATO. Ora il database è pulito e nuovo."}
     except Exception as e:
         return {"error": str(e)}
