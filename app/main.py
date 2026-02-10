@@ -23,11 +23,11 @@ class PazienteAdmin(ModelView, model=Paziente):
         Paziente.data_disdetta
     ]
     
-    # Ricerca (Ora possiamo riprovarci perché la tabella è nuova)
+    # Ricerca (Funziona perché la tabella è nuova)
     column_searchable_list = [Paziente.cognome, Paziente.nome]
     
-    # Ordine campi nel form
-    # NOTA: Non scriviamo nulla sul menu a tendina. Apparirà da solo.
+    # Form di inserimento
+    # (Il menu a tendina "Area" appare da solo grazie a models.py!)
     form_columns = [
         Paziente.nome, 
         Paziente.cognome, 
@@ -37,19 +37,21 @@ class PazienteAdmin(ModelView, model=Paziente):
         Paziente.data_disdetta
     ]
 
-    # AZIONE DISDETTA
+    # --- IL PEZZO CHE MANCAVA: L'AZIONE AUTOMATICA ---
     @action(
         name="segna_disdetto",
         label="❌ Segna come Disdetto",
-        confirmation_message="Confermi la disdetta?"
+        confirmation_message="Confermi la disdetta? Verrà inserita la data di oggi."
     )
     async def action_disdetto(self, request: Request):
+        # Recupera gli ID dei pazienti selezionati
         pks = request.query_params.get("pks", "").split(",")
         if pks and pks != ['']:
             with self.session_maker() as session:
                 for pk in pks:
                     model = session.get(Paziente, int(pk))
                     if model:
+                        # Mette la spunta e la data di oggi
                         model.disdetto = True
                         model.data_disdetta = date.today()
                         session.add(model)
@@ -95,4 +97,4 @@ def on_startup():
 
 @app.get("/")
 def home():
-    return {"msg": "Gestionale Focus Rehab - Modalità Automatica"}
+    return {"msg": "Gestionale Focus Rehab - Completo e Funzionante"}
