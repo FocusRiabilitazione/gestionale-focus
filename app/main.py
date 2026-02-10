@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Request
 from sqladmin import Admin, ModelView, action
+from wtforms import SelectField # Serve per il menu a tendina
 from sqlmodel import SQLModel 
 from datetime import date
 
@@ -8,31 +9,61 @@ from .models import Paziente, Inventario, Prestito, Preventivo, Scadenza
 
 app = FastAPI(title="Gestionale Focus Rehab")
 
-# --- CONFIGURAZIONE PAZIENTI (Versione BASE Sicura) ---
+# --- CONFIGURAZIONE PAZIENTI (COMPLETA) ---
 class PazienteAdmin(ModelView, model=Paziente):
     name = "Paziente"
     name_plural = "Pazienti"
     icon = "fa-solid fa-user-injured"
     
-    # Lista semplice
+    # Colonne visibili nella lista
     column_list = [
         Paziente.cognome, 
         Paziente.nome, 
-        Paziente.area,
-        Paziente.disdetto
-    ]
-    
-    # Form semplice (Senza menu a tendina per ora, per testare se funziona)
-    form_columns = [
-        Paziente.nome, 
-        Paziente.cognome, 
-        Paziente.area,
+        Paziente.area, 
         Paziente.note,
-        Paziente.disdetto, 
+        Paziente.disdetto,
         Paziente.data_disdetta
     ]
+    
+    # Barra di Ricerca e Filtri
+    column_searchable_list = [Paziente.cognome, Paziente.nome]
+    column_filters = [Paziente.area, Paziente.disdetto]
+    column_default_sort = ("cognome", False)
 
-# --- ALTRE VISTE ---
+    # --- 1. MENU A TENDINA PER L'AREA ---
+    form_overrides = dict(area=SelectField)
+    form_args = dict(area=dict(
+        choices=["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico"],
+        label="Area di Competenza"
+    ))
+
+    # Ordine campi nel form
+    form_columns = [
+        Paziente.nome, Paziente.cognome, Paziente.area,
+        Paziente.note,
+        Paziente.disdetto, Paziente.data_disdetta
+    ]
+
+    # --- 2. AZIONE AUTOMATICA DISDETTA ---
+    @action(
+        name="segna_disdetto",
+        label="❌ Segna come Disdetto",
+        confirmation_message="Confermi la disdetta? Verrà inserita la data di oggi."
+    )
+    async def action_disdetto(self, request: Request):
+        pks = request.query_params.get("pks", "").split(",")
+        if pks:
+            with self.session_maker() as session:
+                for pk in pks:
+                    model = session.get(Paziente, int(pk))
+                    if model:
+                        model.disdetto = True
+                        model.data_disdetta = date.today()
+                        session.add(model)
+                session.commit()
+        return
+
+# --- ALTRE VISTE (Standard) ---
 class InventarioAdmin(ModelView, model=Inventario):
     name = "Articolo"
     name_plural = "Magazzino"
