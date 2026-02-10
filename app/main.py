@@ -23,44 +23,39 @@ class PazienteAdmin(ModelView, model=Paziente):
     name_plural = "Pazienti"
     icon = "fa-solid fa-user-injured"
     
-    # ESTETICA: 
-    # - Spunta verde ✅ per i disdetti
-    # - Stetoscopio 🩺 per chi ha la visita medica
+    # ESTETICA: Spunta verde e Stetoscopio
     column_formatters = {
         Paziente.disdetto: lambda m, a: "✅" if m.disdetto else "",
         Paziente.visita_medica: lambda m, a: "🩺" if m.visita_medica else ""
     }
 
-    # COSA VEDI NELLA LISTA
+    # LISTA (Cosa vedi nella tabella principale)
     column_list = [
         Paziente.cognome, 
         Paziente.nome, 
         Paziente.area,
-        Paziente.visita_medica, # Nuova colonna
-        Paziente.data_visita,   # Nuova colonna
+        Paziente.visita_medica, 
+        Paziente.data_visita,
         Paziente.disdetto,
         Paziente.data_disdetta
     ]
     
     column_searchable_list = [Paziente.cognome, Paziente.nome]
     
-    # FORM DI INSERIMENTO / MODIFICA
+    # FORM (Cosa vedi quando apri/modifichi)
+    # ⚠️ HO TOLTO LE SCRITTE "SEZIONE..." CHE CAUSAVANO L'ERRORE
     form_columns = [
         Paziente.nome, 
         Paziente.cognome, 
         Paziente.area,
         Paziente.note,
-        
-        "Sezione Visite", # Titolo separatore automatico
         Paziente.visita_medica,
-        Paziente.data_visita, # Completamente manuale
-        
-        "Sezione Stato", # Titolo separatore
+        Paziente.data_visita, 
         Paziente.disdetto, 
         Paziente.data_disdetta
     ]
 
-    # AZIONE TASTO DISDETTA (Mantiene la logica che funzionava)
+    # AZIONE TASTO DISDETTA
     @action(
         name="segna_disdetto",
         label="❌ Segna come Disdetto",
@@ -123,7 +118,6 @@ def import_pazienti(lista_pazienti: List[PazienteImport]):
         count = 0
         with Session(engine) as session:
             for p in lista_pazienti:
-                # Gestisce la conversione della stringa area nell'Enum
                 nuovo = Paziente(
                     nome=p.nome, 
                     cognome=p.cognome, 
@@ -138,4 +132,4 @@ def import_pazienti(lista_pazienti: List[PazienteImport]):
 
 @app.get("/")
 def home():
-    return {"msg": "Gestionale Focus Rehab - Visite Mediche Attive"}
+    return {"msg": "Gestionale Focus Rehab - Corretto"}
