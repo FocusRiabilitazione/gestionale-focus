@@ -20,16 +20,15 @@ class InventarioImport(BaseModel):
     materiale: str; area_stanza: str; quantita: int=0; soglia_minima: int=2; obiettivo: int=5
 class PrestitoImport(BaseModel):
     oggetto: str; area: str; nome_paziente: str; cognome_paziente: str; durata_giorni: int=7
-class TrattamentoImport(BaseModel):
-    nome: str; area: str; prezzo: float
 
-# --- FUNZIONE STAMPA (AGGIUNTA PER RISOLVERE ERRORE 404) ---
+# --- ENDPOINT STAMPA (NUOVO!) ---
 @app.get("/stampa_preventivo/{prev_id}", response_class=HTMLResponse)
 def stampa_preventivo(prev_id: int):
     with Session(engine) as session:
         prev = session.get(Preventivo, prev_id)
         if not prev: return "Preventivo non trovato"
         
+        # Costruiamo l'HTML per la stampa
         righe_html = ""
         totale = 0
         for riga in prev.righe:
@@ -56,7 +55,6 @@ def stampa_preventivo(prev_id: int):
                 {righe_html}
             </table>
             <h3 style="text-align:right; margin-top:30px;">TOTALE: € {totale:.2f}</h3>
-            <p style="margin-top:20px; font-size:0.9em; color:#555;">Note: {prev.note if prev.note else ''}</p>
             <div style="text-align:center; margin-top:50px;">
                 <button onclick="window.print()" style="padding:10px 20px; font-size:16px;">🖨️ STAMPA ADESSO</button>
             </div>
@@ -69,28 +67,25 @@ def stampa_preventivo(prev_id: int):
 def aumenta_quantita(request: Request, pk: int):
     with Session(engine) as session:
         item = session.get(Inventario, pk)
-        if item:
-            item.quantita += 1; session.add(item); session.commit()
+        if item: item.quantita += 1; session.add(item); session.commit()
     return RedirectResponse(request.url_for("admin:list", identity="inventario"), status_code=303)
 
 @app.get("/magazzino/meno/{pk}")
 def diminuisci_quantita(request: Request, pk: int):
     with Session(engine) as session:
         item = session.get(Inventario, pk)
-        if item and item.quantita > 0:
-            item.quantita -= 1; session.add(item); session.commit()
+        if item and item.quantita > 0: item.quantita -= 1; session.add(item); session.commit()
     return RedirectResponse(request.url_for("admin:list", identity="inventario"), status_code=303)
 
-# --- 1. PAZIENTI (TUO CODICE) ---
+# --- AMMINISTRAZIONE ---
+
+# 1. PAZIENTI (TUO CODICE ORIGINALE)
 class PazienteAdmin(ModelView, model=Paziente):
-    name = "Paziente"; name_plural = "Pazienti"; icon = "fa-solid fa-user-injured"
-    column_formatters = {
-        Paziente.disdetto: lambda m, a: "✅" if m.disdetto else "",
-        Paziente.visita_medica: lambda m, a: "🩺" if m.visita_medica else ""
-    }
-    column_list = [Paziente.cognome, Paziente.nome, Paziente.area, Paziente.visita_medica, Paziente.data_visita, Paziente.disdetto]
-    column_searchable_list = [Paziente.cognome, Paziente.nome]
-    form_columns = [Paziente.nome, Paziente.cognome, Paziente.area, Paziente.note, Paziente.visita_medica, Paziente.data_visita, Paziente.disdetto, Paziente.data_disdetta]
+    name="Paziente"; name_plural="Pazienti"; icon="fa-solid fa-user-injured"
+    column_formatters={Paziente.disdetto: lambda m,a: "✅" if m.disdetto else "", Paziente.visita_medica: lambda m,a: "🩺" if m.visita_medica else ""}
+    column_list=[Paziente.cognome, Paziente.nome, Paziente.area, Paziente.visita_medica, Paziente.data_visita, Paziente.disdetto]
+    column_searchable_list=[Paziente.cognome, Paziente.nome]
+    form_columns=[Paziente.nome, Paziente.cognome, Paziente.area, Paziente.note, Paziente.visita_medica, Paziente.data_visita, Paziente.disdetto, Paziente.data_disdetta]
     @action(name="segna_disdetto", label="❌ Segna Disdetto", confirmation_message="Confermi?")
     def action_disdetto(self, request: Request):
         pks = request.query_params.get("pks", "").split(",")
@@ -102,25 +97,23 @@ class PazienteAdmin(ModelView, model=Paziente):
             session.commit()
         return RedirectResponse(request.url_for("admin:list", identity="paziente"), status_code=303)
 
-# --- 2. MAGAZZINO (TUO CODICE) ---
+# 2. MAGAZZINO (TUO CODICE ORIGINALE)
 class InventarioAdmin(ModelView, model=Inventario):
-    name = "Articolo"; name_plural = "Magazzino"; icon = "fa-solid fa-box"
+    name="Articolo"; name_plural="Magazzino"; icon="fa-solid fa-box"
     def formatta_con_bottoni(model, attribute):
         stato = ""
         if model.quantita <= model.soglia_minima: stato = f"🔴 {model.quantita} (ORDINA!)"
         elif model.quantita >= model.obiettivo: stato = f"🌟 {model.quantita} (Pieno)"
         else: stato = f"✅ {model.quantita} (Ok)"
         style = "text-decoration:none; border:1px solid #ccc; padding:2px 6px; border-radius:4px; margin:0 2px; background:#f9f9f9;"
-        btn_meno = f'<a href="/magazzino/meno/{model.id}" style="{style}">➖</a>'
-        btn_piu = f'<a href="/magazzino/piu/{model.id}" style="{style}">➕</a>'
-        return Markup(f"{btn_meno} &nbsp; <b>{stato}</b> &nbsp; {btn_piu}")
+        return Markup(f'<a href="/magazzino/meno/{model.id}" style="{style}">➖</a> &nbsp; <b>{stato}</b> &nbsp; <a href="/magazzino/piu/{model.id}" style="{style}">➕</a>')
     column_formatters = {Inventario.quantita: formatta_con_bottoni}
-    column_list = [Inventario.materiale, Inventario.area_stanza, Inventario.quantita, Inventario.soglia_minima, Inventario.obiettivo]
-    form_columns = [Inventario.materiale, Inventario.area_stanza, Inventario.quantita, Inventario.soglia_minima, Inventario.obiettivo]
+    column_list=[Inventario.materiale, Inventario.area_stanza, Inventario.quantita, Inventario.soglia_minima, Inventario.obiettivo]
+    form_columns=[Inventario.materiale, Inventario.area_stanza, Inventario.quantita, Inventario.soglia_minima, Inventario.obiettivo]
 
-# --- 3. PRESTITI (TUO CODICE) ---
+# 3. PRESTITI (TUO CODICE ORIGINALE)
 class PrestitoAdmin(ModelView, model=Prestito):
-    name = "Prestito"; name_plural = "Prestiti"; icon = "fa-solid fa-stopwatch"
+    name="Prestito"; name_plural="Prestiti"; icon="fa-solid fa-stopwatch"
     def list_query(self, request): return select(Prestito).where(Prestito.restituito == False)
     def formatta_scadenza(model, attribute):
         if not model.data_scadenza: return "⏳ In corso"
@@ -128,18 +121,18 @@ class PrestitoAdmin(ModelView, model=Prestito):
         if diff < 0: return Markup(f'<span style="color:red; font-weight:bold;">🔴 SCADUTO da {abs(diff)} gg!</span>')
         return Markup(f"⏳ Scade tra {diff} gg")
     column_formatters = {Prestito.data_scadenza: formatta_scadenza}
-    column_list = [Prestito.area, Prestito.oggetto, Prestito.paziente, Prestito.data_scadenza]
-    form_columns = [Prestito.area, Prestito.oggetto, Prestito.paziente, Prestito.data_inizio, Prestito.durata_giorni, Prestito.restituito]
+    column_list=[Prestito.area, Prestito.oggetto, Prestito.paziente, Prestito.data_scadenza]
+    form_columns=[Prestito.area, Prestito.oggetto, Prestito.paziente, Prestito.data_inizio, Prestito.durata_giorni, Prestito.restituito]
     async def on_model_change(self, data, model, is_created, request):
         if model.data_inizio and model.durata_giorni: model.data_scadenza = model.data_inizio + timedelta(days=model.durata_giorni)
 
-# --- 4. LISTINO PREZZI (RIATTIVATO PER I PREVENTIVI) ---
+# --- 4. LISTINO PREZZI (RIATTIVATO) ---
 class TrattamentoAdmin(ModelView, model=Trattamento):
     name = "Listino Prezzi"
     name_plural = "Listino Prezzi"
     icon = "fa-solid fa-tags"
     column_list = [Trattamento.nome, Trattamento.prezzo_base]
-    form_columns = [Trattamento.nome, Trattamento.area, Trattamento.prezzo_base]
+    form_columns = [Trattamento.nome, Trattamento.prezzo_base]
 
 # --- 5. PREVENTIVI (FUNZIONANTE E CON STAMPA) ---
 class RigaPreventivoInline(ModelView, model=RigaPreventivo):
@@ -150,14 +143,15 @@ class PreventivoAdmin(ModelView, model=Preventivo):
     name_plural = "Preventivi"
     icon = "fa-solid fa-file-invoice-dollar"
     
-    inlines = [RigaPreventivoInline] # Questo abilita la spesa
+    # Questo abilita la tabella per inserire i servizi
+    inlines = [RigaPreventivoInline] 
 
     def link_stampa(model, attribute):
         return Markup(f'<a href="/stampa_preventivo/{model.id}" target="_blank" style="font-size:1.2em;">🖨️ STAMPA</a>')
 
-    column_formatters = {Preventivo.id: link_stampa}
+    column_formatters = {Preventivo.id: link_stampa} # Sostituisce l'ID col tasto stampa
     column_list = [Preventivo.id, Preventivo.data_creazione, Preventivo.paziente_rel, Preventivo.totale_calcolato]
-    form_columns = [Preventivo.paziente_rel, Preventivo.data_creazione, Preventivo.oggetto, Preventivo.note, Preventivo.accettato]
+    form_columns = [Preventivo.paziente_rel, Preventivo.data_creazione, Preventivo.oggetto, Preventivo.note]
 
     async def after_model_change(self, data, model, is_created, request):
         with Session(engine) as session:
@@ -166,8 +160,7 @@ class PreventivoAdmin(ModelView, model=Preventivo):
             if prev and prev.righe:
                 tot = 0
                 for riga in prev.righe:
-                    if riga.trattamento:
-                        tot += (riga.trattamento.prezzo_base * riga.quantita) - riga.sconto
+                    if riga.trattamento: tot += (riga.trattamento.prezzo_base * riga.quantita) - riga.sconto
                 prev.totale_calcolato = tot
                 session.add(prev); session.commit()
 
@@ -207,11 +200,5 @@ def import_prestiti(l: List[PrestitoImport]):
         for i in l:
             p = s.exec(select(Paziente).where(Paziente.nome==i.nome_paziente, Paziente.cognome==i.cognome_paziente)).first()
             s.add(Prestito(oggetto=i.oggetto, area=i.area, paziente_id=p.id if p else None, durata_giorni=i.durata_giorni))
-        s.commit()
-    return {"msg": "Ok"}
-@app.post("/import-trattamenti")
-def import_trattamenti(l: List[TrattamentoImport]):
-    with Session(engine) as s:
-        for i in l: s.add(Trattamento(nome=i.nome, area=i.area, prezzo_base=i.prezzo))
         s.commit()
     return {"msg": "Ok"}
