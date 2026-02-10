@@ -1,13 +1,22 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from sqladmin import Admin, ModelView, action
-from sqlmodel import SQLModel 
+from sqlmodel import SQLModel, Session, select
 from datetime import date
 from starlette.responses import RedirectResponse
+from pydantic import BaseModel
+from typing import List
 
 from .database import engine, init_db
 from .models import Paziente, Inventario, Prestito, Preventivo, Scadenza
 
 app = FastAPI(title="Gestionale Focus Rehab")
+
+# --- STRUTTURA PER L'IMPORTAZIONE DATI ---
+# Questo serve per l'importazione massiva
+class PazienteImport(BaseModel):
+    nome: str
+    cognome: str
+    area: str # Deve essere: Mano-Polso, Colonna, ATM, o Muscolo-Scheletrico
 
 # --- CONFIGURAZIONE PAZIENTI ---
 class PazienteAdmin(ModelView, model=Paziente):
@@ -15,7 +24,7 @@ class PazienteAdmin(ModelView, model=Paziente):
     name_plural = "Pazienti"
     icon = "fa-solid fa-user-injured"
     
-    # 1. ESTETICA: VIA LA "X" ROSSA
+    # Estetica: Spunta verde o vuoto
     column_formatters = {
         Paziente.disdetto: lambda m, a: "✅" if m.disdetto else ""
     }
@@ -39,19 +48,20 @@ class PazienteAdmin(ModelView, model=Paziente):
         Paziente.data_disdetta
     ]
 
-    # 2. LOGICA AUTOMATICA (SALVATAGGIO)
-    # ⚠️ QUI ERA L'ERRORE: Ho rimesso 'async' perché SQLAdmin lo pretende qui.
+    # --- LOGICA SALVATAGGIO (CORRETTA) ---
     async def on_model_change(self, data, model, is_created, request):
-        # A. Se metti la spunta ma scordi la data -> Mette OGGI
-        if model.disdetto is True and not model.data_disdetta:
-            model.data_disdetta = date.today()
-            
-        # B. Se TOGLI la spunta (il paziente torna attivo) -> Cancella la data!
-        if model.disdetto is False:
+        # Logica semplificata:
+        # Se c'è la spunta...
+        if model.disdetto:
+            # ...e manca la data, mettiamo oggi.
+            if not model.data_disdetta:
+                model.data_disdetta = date.today()
+        # Se NON c'è la spunta...
+        else:
+            # ...cancelliamo la data.
             model.data_disdetta = None
 
-    # 3. AZIONE TASTO DISDETTA (MASSIVA)
-    # Qui invece 'async' NON serve, altrimenti il redirect si inceppa.
+    # --- AZIONE TASTO DISDETTA ---
     @action(
         name="segna_disdetto",
         label="❌ Segna come Disdetto",
@@ -59,7 +69,6 @@ class PazienteAdmin(ModelView, model=Paziente):
     )
     def action_disdetto(self, request: Request):
         pks = request.query_params.get("pks", "").split(",")
-        
         with self.session_maker() as session:
             for pk in pks:
                 if pk.isdigit():
@@ -69,8 +78,6 @@ class PazienteAdmin(ModelView, model=Paziente):
                         model.data_disdetta = date.today()
                         session.add(model)
             session.commit()
-
-        # Ricarica la pagina per mostrare le modifiche
         return RedirectResponse(request.url_for("admin:list", identity="paziente"), status_code=303)
 
 # --- ALTRE VISTE ---
@@ -110,6 +117,26 @@ admin.add_view(ScadenzaAdmin)
 def on_startup():
     init_db()
 
+# --- FUNZIONE IMPORTAZIONE VELOCE ---
+@app.post("/import-rapido")
+def import_pazienti(lista_pazienti: List[PazienteImport]):
+    try:
+        count = 0
+        with Session(engine) as session:
+            for p in lista_pazienti:
+                # Crea il nuovo paziente
+                nuovo = Paziente(
+                    nome=p.nome, 
+                    cognome=p.cognome, 
+                    area=p.area
+                )
+                session.add(nuovo)
+                count += 1
+            session.commit()
+        return {"messaggio": f"Successo! Importati {count} pazienti."}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 @app.get("/")
 def home():
-    return {"msg": "Gestionale Focus Rehab - Versione Corretta"}
+    return {"msg": "Gestionale Focus Rehab - Importatore Attivo"}
