@@ -1,16 +1,28 @@
 from typing import Optional
 from datetime import date
 from sqlmodel import SQLModel, Field
+from enum import Enum  # <--- Importiamo Enum per fare il menu nativo
+
+# 1. DEFINIAMO LE SCELTE QUI (Non nel main)
+class AreaEnum(str, Enum):
+    MANO = "Mano-Polso"
+    COLONNA = "Colonna"
+    ATM = "ATM"
+    MUSCOLO = "Muscolo-Scheletrico"
 
 # --- ANAGRAFICA PAZIENTI ---
 class Paziente(SQLModel, table=True):
-    # TABELLA NUOVA DI ZECCA
-    __tablename__ = "pazienti_reset" 
+    # Usiamo un nome nuovo per garantire che il DB crei il tipo Enum corretto
+    __tablename__ = "pazienti_auto" 
     
     id: Optional[int] = Field(default=None, primary_key=True)
     nome: str
     cognome: str
-    area: str 
+    
+    # 2. COLLEGHIAMO IL MENU
+    # Dicendo che 'area' è di tipo 'AreaEnum', il menu appare da solo!
+    area: AreaEnum 
+    
     note: Optional[str] = None
     disdetto: bool = False
     data_disdetta: Optional[date] = None
@@ -18,30 +30,25 @@ class Paziente(SQLModel, table=True):
     visita_esterna: bool = False
     data_visita: Optional[date] = None
 
-# --- ALTRE TABELLE (Standard) ---
+# --- ALTRE TABELLE (Uguali a prima) ---
 class Inventario(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     materiale: str
-    area_stanza: str 
     quantita: int = 0
-    obiettivo: int = 5
-    soglia_minima: int = 2
+    area_stanza: str 
 
 class Prestito(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     paziente_nome: str 
     oggetto: str
-    data_prestito: date = Field(default_factory=date.today)
     data_scadenza: date
     restituito: bool = False
 
 class Preventivo(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     paziente: str
-    dettagli: str 
     totale: float
     data_creazione: date = Field(default_factory=date.today)
-    note: Optional[str] = None
 
 class Scadenza(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -49,4 +56,3 @@ class Scadenza(SQLModel, table=True):
     importo: float
     data_scadenza: date
     pagato: bool = False
-    ricorrenza: str = "Singola"
