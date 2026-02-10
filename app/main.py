@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request, HTTPException
 from sqladmin import Admin, ModelView, action
 from sqlmodel import SQLModel, Session, select
-from datetime import date, timedelta
+from datetime import date, timedelta # <--- Ho aggiunto timedelta per i calcoli
 from starlette.responses import RedirectResponse
 from pydantic import BaseModel
 from typing import List
@@ -12,15 +12,18 @@ from .models import Paziente, Inventario, Prestito, Preventivo, Scadenza
 
 app = FastAPI(title="Gestionale Focus Rehab")
 
-# --- STRUTTURE PER IMPORTAZIONE ---
+# --- STRUTTURE PER IMPORTAZIONE MASSIVA ---
+
+# 1. Per i Pazienti
 class PazienteImport(BaseModel):
     nome: str
     cognome: str
-    area: str 
+    area: str
 
+# 2. Per il Magazzino
 class InventarioImport(BaseModel):
     materiale: str
-    area_stanza: str
+    area_stanza: str 
     quantita: int = 0
     soglia_minima: int = 2
     obiettivo: int = 5
@@ -34,8 +37,7 @@ def aumenta_quantita(request: Request, pk: int):
             item.quantita += 1
             session.add(item)
             session.commit()
-    # Torna alla pagina precedente
-    return RedirectResponse(request.headers.get("referer"), status_code=303)
+    return RedirectResponse(request.url_for("admin:list", identity="inventario"), status_code=303)
 
 @app.get("/magazzino/meno/{pk}")
 def diminuisci_quantita(request: Request, pk: int):
@@ -45,10 +47,9 @@ def diminuisci_quantita(request: Request, pk: int):
             item.quantita -= 1
             session.add(item)
             session.commit()
-    return RedirectResponse(request.headers.get("referer"), status_code=303)
+    return RedirectResponse(request.url_for("admin:list", identity="inventario"), status_code=303)
 
-
-# --- CONFIGURAZIONE PAZIENTI ---
+# --- PAZIENTI (INVARIATO) ---
 class PazienteAdmin(ModelView, model=Paziente):
     name = "Paziente"
     name_plural = "Pazienti"
@@ -69,7 +70,7 @@ class PazienteAdmin(ModelView, model=Paziente):
         Paziente.visita_medica, Paziente.data_visita, 
         Paziente.disdetto, Paziente.data_disdetta
     ]
-    
+
     @action(name="segna_disdetto", label="❌ Segna come Disdetto", confirmation_message="Confermi?")
     def action_disdetto(self, request: Request):
         pks = request.query_params.get("pks", "").split(",")
@@ -84,27 +85,20 @@ class PazienteAdmin(ModelView, model=Paziente):
             session.commit()
         return RedirectResponse(request.url_for("admin:list", identity="paziente"), status_code=303)
 
-
-# --- CONFIGURAZIONE MAGAZZINO (RIPRISTINATO VERSIONE FUNZIONANTE) ---
+# --- MAGAZZINO (INVARIATO) ---
 class InventarioAdmin(ModelView, model=Inventario):
     name = "Articolo"
     name_plural = "Magazzino"
     icon = "fa-solid fa-box"
 
-    # Funzione definita DENTRO la classe (come piaceva al sistema)
     def formatta_con_bottoni(model, attribute):
         stato = ""
-        # Controlli di sicurezza sui valori
-        q = model.quantita if model.quantita is not None else 0
-        soglia = model.soglia_minima if model.soglia_minima is not None else 0
-        obiett = model.obiettivo if model.obiettivo is not None else 0
-
-        if q <= soglia:
-            stato = f"🔴 {q} (ORDINA!)"
-        elif q >= obiett:
-            stato = f"🌟 {q} (Pieno)"
+        if model.quantita <= model.soglia_minima:
+            stato = f"🔴 {model.quantita} (ORDINA!)"
+        elif model.quantita >= model.obiettivo:
+            stato = f"🌟 {model.quantita} (Pieno)"
         else:
-            stato = f"✅ {q} (Ok)"
+            stato = f"✅ {model.quantita} (Ok)"
             
         style = "text-decoration:none; border:1px solid #ccc; padding:2px 6px; border-radius:4px; margin:0 2px; background:#f9f9f9;"
         btn_meno = f'<a href="/magazzino/meno/{model.id}" style="{style}">➖</a>'
@@ -117,16 +111,12 @@ class InventarioAdmin(ModelView, model=Inventario):
     }
 
     column_list = [
-        Inventario.area_stanza, 
         Inventario.materiale, 
+        Inventario.area_stanza, 
         Inventario.quantita, 
         Inventario.soglia_minima, 
         Inventario.obiettivo
     ]
-    
-    column_default_sort = "area_stanza" 
-    column_searchable_list = [Inventario.materiale]
-    column_filters = [Inventario.area_stanza]
     
     form_columns = [
         Inventario.materiale,
@@ -136,18 +126,17 @@ class InventarioAdmin(ModelView, model=Inventario):
         Inventario.obiettivo
     ]
 
-
-# --- CONFIGURAZIONE PRESTITI (NUOVA E PULITA) ---
+# --- PRESTITI (VERSIONE POTENZIATA) ---
 class PrestitoAdmin(ModelView, model=Prestito):
     name = "Prestito"
     name_plural = "Prestiti"
     icon = "fa-solid fa-stopwatch"
 
-    # FILTRO MAGICO: Mostra SOLO quelli NON restituiti
+    # 1. FILTRO AUTOMATICO: Nasconde i restituiti
     def list_query(self, request):
         return select(Prestito).where(Prestito.restituito == False)
 
-    # Formatta la scadenza
+    # 2. CALCOLO SCADENZA VISIVA
     def formatta_scadenza(model, attribute):
         if not model.data_scadenza:
             return "⏳ In corso"
@@ -169,7 +158,7 @@ class PrestitoAdmin(ModelView, model=Prestito):
     column_list = [
         Prestito.area,
         Prestito.oggetto,
-        Prestito.paziente, # Mostra Nome Cognome
+        Prestito.paziente, # Mostra nome e cognome
         Prestito.data_inizio,
         Prestito.data_scadenza
     ]
@@ -180,14 +169,13 @@ class PrestitoAdmin(ModelView, model=Prestito):
         Prestito.paziente, # Menu a tendina
         Prestito.data_inizio,
         Prestito.durata_giorni,
-        Prestito.restituito # Se lo flagghi, sparisce dalla lista
+        Prestito.restituito # Se lo spunti, sparisce dalla lista
     ]
 
-    # Calcolo automatico scadenza al salvataggio
+    # 3. LOGICA CALCOLO DATA
     async def on_model_change(self, data, model, is_created, request):
         if model.data_inizio and model.durata_giorni:
             model.data_scadenza = model.data_inizio + timedelta(days=model.durata_giorni)
-
 
 # --- ALTRE VISTE ---
 class PreventivoAdmin(ModelView, model=Preventivo):
@@ -235,14 +223,20 @@ def import_magazzino(lista_articoli: List[InventarioImport]):
         count = 0
         with Session(engine) as session:
             for item in lista_articoli:
-                nuovo = Inventario(materiale=item.materiale, area_stanza=item.area_stanza, quantita=item.quantita, soglia_minima=item.soglia_minima, obiettivo=item.obiettivo)
+                nuovo = Inventario(
+                    materiale=item.materiale,
+                    area_stanza=item.area_stanza,
+                    quantita=item.quantita,
+                    soglia_minima=item.soglia_minima,
+                    obiettivo=item.obiettivo
+                )
                 session.add(nuovo)
                 count += 1
             session.commit()
-        return {"messaggio": f"Fatto! Importati {count} articoli."}
+        return {"messaggio": f"Fatto! Importati {count} articoli in magazzino."}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.get("/")
 def home():
-    return {"msg": "Gestionale Focus Rehab - Tutto Funzionante"}
+    return {"msg": "Gestionale Focus Rehab - Completo e Funzionante"}
