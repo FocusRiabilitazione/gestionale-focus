@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request, HTTPException
 from sqladmin import Admin, ModelView, action
 from sqlmodel import SQLModel, Session, select
-from datetime import date, timedelta # <--- Ho aggiunto timedelta per i calcoli
+from datetime import date, timedelta
 from starlette.responses import RedirectResponse
 from pydantic import BaseModel
 from typing import List
@@ -28,6 +28,14 @@ class InventarioImport(BaseModel):
     soglia_minima: int = 2
     obiettivo: int = 5
 
+# 3. Per i Prestiti (NUOVO)
+class PrestitoImport(BaseModel):
+    oggetto: str
+    area: str # "Oggetti" o "Elettromedicali"
+    nome_paziente: str
+    cognome_paziente: str
+    durata_giorni: int = 7 # Se non lo scrivi mette 7 giorni
+
 # --- ENDPOINT RAPIDI (+ e -) ---
 @app.get("/magazzino/piu/{pk}")
 def aumenta_quantita(request: Request, pk: int):
@@ -49,7 +57,7 @@ def diminuisci_quantita(request: Request, pk: int):
             session.commit()
     return RedirectResponse(request.url_for("admin:list", identity="inventario"), status_code=303)
 
-# --- PAZIENTI (INVARIATO) ---
+# --- PAZIENTI ---
 class PazienteAdmin(ModelView, model=Paziente):
     name = "Paziente"
     name_plural = "Pazienti"
@@ -85,7 +93,7 @@ class PazienteAdmin(ModelView, model=Paziente):
             session.commit()
         return RedirectResponse(request.url_for("admin:list", identity="paziente"), status_code=303)
 
-# --- MAGAZZINO (INVARIATO) ---
+# --- MAGAZZINO ---
 class InventarioAdmin(ModelView, model=Inventario):
     name = "Articolo"
     name_plural = "Magazzino"
@@ -118,6 +126,10 @@ class InventarioAdmin(ModelView, model=Inventario):
         Inventario.obiettivo
     ]
     
+    column_default_sort = "area_stanza" 
+    column_searchable_list = [Inventario.materiale]
+    column_filters = [Inventario.area_stanza]
+
     form_columns = [
         Inventario.materiale,
         Inventario.area_stanza,
@@ -126,17 +138,15 @@ class InventarioAdmin(ModelView, model=Inventario):
         Inventario.obiettivo
     ]
 
-# --- PRESTITI (VERSIONE POTENZIATA) ---
+# --- PRESTITI ---
 class PrestitoAdmin(ModelView, model=Prestito):
     name = "Prestito"
     name_plural = "Prestiti"
     icon = "fa-solid fa-stopwatch"
 
-    # 1. FILTRO AUTOMATICO: Nasconde i restituiti
     def list_query(self, request):
         return select(Prestito).where(Prestito.restituito == False)
 
-    # 2. CALCOLO SCADENZA VISIVA
     def formatta_scadenza(model, attribute):
         if not model.data_scadenza:
             return "⏳ In corso"
@@ -158,7 +168,7 @@ class PrestitoAdmin(ModelView, model=Prestito):
     column_list = [
         Prestito.area,
         Prestito.oggetto,
-        Prestito.paziente, # Mostra nome e cognome
+        Prestito.paziente,
         Prestito.data_inizio,
         Prestito.data_scadenza
     ]
@@ -166,13 +176,12 @@ class PrestitoAdmin(ModelView, model=Prestito):
     form_columns = [
         Prestito.area,
         Prestito.oggetto,
-        Prestito.paziente, # Menu a tendina
+        Prestito.paziente,
         Prestito.data_inizio,
         Prestito.durata_giorni,
-        Prestito.restituito # Se lo spunti, sparisce dalla lista
+        Prestito.restituito
     ]
 
-    # 3. LOGICA CALCOLO DATA
     async def on_model_change(self, data, model, is_created, request):
         if model.data_inizio and model.durata_giorni:
             model.data_scadenza = model.data_inizio + timedelta(days=model.durata_giorni)
@@ -202,7 +211,7 @@ admin.add_view(ScadenzaAdmin)
 def on_startup():
     init_db()
 
-# --- IMPORTATORI ---
+# --- IMPORTATORE PAZIENTI ---
 @app.post("/import-rapido")
 def import_pazienti(lista_pazienti: List[PazienteImport]):
     try:
@@ -217,6 +226,7 @@ def import_pazienti(lista_pazienti: List[PazienteImport]):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+# --- IMPORTATORE MAGAZZINO ---
 @app.post("/import-magazzino")
 def import_magazzino(lista_articoli: List[InventarioImport]):
     try:
@@ -233,10 +243,46 @@ def import_magazzino(lista_articoli: List[InventarioImport]):
                 session.add(nuovo)
                 count += 1
             session.commit()
-        return {"messaggio": f"Fatto! Importati {count} articoli in magazzino."}
+        return {"messaggio": f"Fatto! Importati {count} articoli."}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+# --- IMPORTATORE PRESTITI (NUOVO) ---
+@app.post("/import-prestiti")
+def import_prestiti(lista_prestiti: List[PrestitoImport]):
+    try:
+        count = 0
+        with Session(engine) as session:
+            for item in lista_prestiti:
+                # 1. CERCA IL PAZIENTE NEL DATABASE
+                # Usiamo select per trovare l'ID basandoci su Nome e Cognome
+                statement = select(Paziente).where(
+                    Paziente.nome == item.nome_paziente, 
+                    Paziente.cognome == item.cognome_paziente
+                )
+                results = session.exec(statement)
+                paziente_trovato = results.first()
+                
+                # Se lo troviamo, prendiamo il suo ID, altrimenti None
+                pid = paziente_trovato.id if paziente_trovato else None
+
+                # 2. CREA IL PRESTITO
+                nuovo = Prestito(
+                    oggetto=item.oggetto,
+                    area=item.area,
+                    paziente_id=pid, # Qui avviene il collegamento magico
+                    durata_giorni=item.durata_giorni,
+                    data_inizio=date.today(),
+                    # La data di scadenza la calcoliamo subito
+                    data_scadenza=date.today() + timedelta(days=item.durata_giorni)
+                )
+                session.add(nuovo)
+                count += 1
+            session.commit()
+        return {"messaggio": f"Fatto! Importati {count} prestiti."}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.get("/")
 def home():
-    return {"msg": "Gestionale Focus Rehab - Completo e Funzionante"}
+    return {"msg": "Gestionale Focus Rehab - Tutto Pronto"}
