@@ -40,18 +40,19 @@ class PazienteAdmin(ModelView, model=Paziente):
     ]
 
     # 2. LOGICA AUTOMATICA (SALVATAGGIO)
-    # ⚠️ QUI ERA L'ERRORE: Ho rimesso 'async' perché SQLAdmin lo pretende qui.
+    # Questa funzione deve essere ASYNC altrimenti dà errore su "New Paziente"
     async def on_model_change(self, data, model, is_created, request):
-        # A. Se metti la spunta ma scordi la data -> Mette OGGI
-        if model.disdetto is True and not model.data_disdetta:
-            model.data_disdetta = date.today()
-            
-        # B. Se TOGLI la spunta (il paziente torna attivo) -> Cancella la data!
-        if model.disdetto is False:
+        # A. LOGICA PIÙ ROBUSTA:
+        # Usiamo "if not" invece di "is False" per essere sicuri che la intercetti
+        if not model.disdetto:
             model.data_disdetta = None
+            
+        # B. Se invece è disdetto (True) ma manca la data, metti oggi
+        elif model.disdetto and not model.data_disdetta:
+            model.data_disdetta = date.today()
 
     # 3. AZIONE TASTO DISDETTA (MASSIVA)
-    # Qui invece 'async' NON serve, altrimenti il redirect si inceppa.
+    # Questa funzione NON deve essere async per non rompere il redirect
     @action(
         name="segna_disdetto",
         label="❌ Segna come Disdetto",
@@ -70,7 +71,7 @@ class PazienteAdmin(ModelView, model=Paziente):
                         session.add(model)
             session.commit()
 
-        # Ricarica la pagina per mostrare le modifiche
+        # Ricarica la pagina per mostrare le modifiche ed evitare errori rossi
         return RedirectResponse(request.url_for("admin:list", identity="paziente"), status_code=303)
 
 # --- ALTRE VISTE ---
@@ -112,4 +113,4 @@ def on_startup():
 
 @app.get("/")
 def home():
-    return {"msg": "Gestionale Focus Rehab - Versione Corretta"}
+    return {"msg": "Gestionale Focus Rehab - Versione Finale"}
