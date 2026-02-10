@@ -18,7 +18,7 @@ class PazienteImport(BaseModel):
     cognome: str
     area: str 
 
-# --- ENDPOINT RAPIDI (I "Comandi Segreti" restano uguali) ---
+# --- ENDPOINT RAPIDI (+ e -) ---
 @app.get("/magazzino/piu/{pk}")
 def aumenta_quantita(request: Request, pk: int):
     with Session(engine) as session:
@@ -27,7 +27,6 @@ def aumenta_quantita(request: Request, pk: int):
             item.quantita += 1
             session.add(item)
             session.commit()
-    # Torna alla pagina precedente (così funziona su tutte le viste)
     return RedirectResponse(request.headers.get("referer"), status_code=303)
 
 @app.get("/magazzino/meno/{pk}")
@@ -40,10 +39,28 @@ def diminuisci_quantita(request: Request, pk: int):
             session.commit()
     return RedirectResponse(request.headers.get("referer"), status_code=303)
 
-# --- FUNZIONE DI FORMATTAZIONE CONDIVISA ---
-# La definiamo qui fuori così la usano tutte le 5 sezioni
-def formatta_magazzino(model, attribute):
+# --- FORMATTAZIONE VISIVA (Semaforo e Badge Area) ---
+
+# 1. Colori per le Aree (Etichette visive)
+def formatta_area(model, attribute):
+    area = model.area_stanza.value
+    colore = "gray" # Default
+    
+    # Assegniamo un colore per ogni reparto
+    if area == "Mano": colore = "#3498db"        # Blu
+    elif area == "Medicinali": colore = "#e74c3c" # Rosso
+    elif area == "Pulizie": colore = "#f1c40f"    # Giallo
+    elif area == "Segreteria": colore = "#9b59b6" # Viola
+    elif area == "Stanze": colore = "#2ecc71"     # Verde
+    
+    # Crea un'etichetta colorata (Badge)
+    html = f'<span style="background-color:{colore}; color:white; padding:4px 8px; border-radius:12px; font-size:0.85em; font-weight:bold;">{area}</span>'
+    return Markup(html)
+
+# 2. Semaforo + Pulsanti
+def formatta_quantita(model, attribute):
     stato = ""
+    # Icona Stato
     if model.quantita <= model.soglia_minima:
         stato = f"🔴 {model.quantita} (ORDINA!)"
     elif model.quantita >= model.obiettivo:
@@ -51,26 +68,41 @@ def formatta_magazzino(model, attribute):
     else:
         stato = f"✅ {model.quantita} (Ok)"
         
-    style = "text-decoration:none; border:1px solid #ccc; padding:2px 6px; border-radius:4px; margin:0 2px; background:#f9f9f9;"
-    btn_meno = f'<a href="/magazzino/meno/{model.id}" style="{style}">➖</a>'
-    btn_piu = f'<a href="/magazzino/piu/{model.id}" style="{style}">➕</a>'
+    # Pulsanti
+    style = "text-decoration:none; border:1px solid #ccc; padding:2px 7px; border-radius:4px; margin:0 3px; background:#fff; font-weight:bold; color:#333;"
+    btn_meno = f'<a href="/magazzino/meno/{model.id}" style="{style}">-</a>'
+    btn_piu = f'<a href="/magazzino/piu/{model.id}" style="{style}">+</a>'
     
-    return Markup(f"{btn_meno} &nbsp; <b>{stato}</b> &nbsp; {btn_piu}")
+    return Markup(f"{btn_meno} {stato} {btn_piu}")
 
 
-# --- CLASSE BASE MAGAZZINO (Lo stampino per tutte le sezioni) ---
-class InventarioBase(ModelView):
-    # Configurazioni comuni a tutti
-    column_formatters = { Inventario.quantita: formatta_magazzino }
+# --- CONFIGURAZIONE VISUALIZZAZIONE MAGAZZINO ---
+class InventarioAdmin(ModelView, model=Inventario):
+    name = "Magazzino"
+    name_plural = "Magazzino"
+    icon = "fa-solid fa-boxes-stacked"
     
-    # Nella lista specifica togliamo la colonna "Area" perché è ovvia (siamo già nella sezione giusta)
+    # Applichiamo le formattazioni personalizzate
+    column_formatters = {
+        Inventario.quantita: formatta_quantita,
+        Inventario.area_stanza: formatta_area
+    }
+
     column_list = [
         Inventario.materiale, 
+        Inventario.area_stanza,  # Ora appare colorata!
         Inventario.quantita, 
         Inventario.soglia_minima, 
         Inventario.obiettivo
     ]
     
+    # ORDINAMENTO AUTOMATICO: Raggruppa per stanza
+    column_default_sort = "area_stanza" 
+    
+    # Filtri potenti: Cerca materiale o filtra per stanza
+    column_searchable_list = [Inventario.materiale]
+    column_filters = [Inventario.area_stanza]
+
     form_columns = [
         Inventario.materiale,
         Inventario.area_stanza,
@@ -79,54 +111,7 @@ class InventarioBase(ModelView):
         Inventario.obiettivo
     ]
 
-# --- LE 5 SEZIONI SPECIFICHE ---
-
-class MagazzinoMano(InventarioBase, model=Inventario):
-    name = "Mano"
-    name_plural = "Mano"
-    category = "Magazzino" # <--- Questo crea la cartella!
-    icon = "fa-solid fa-hand"
-    
-    def list_query(self, request):
-        return select(Inventario).where(Inventario.area_stanza == AreaMagazzino.MANO)
-
-class MagazzinoSegreteria(InventarioBase, model=Inventario):
-    name = "Segreteria"
-    name_plural = "Segreteria"
-    category = "Magazzino"
-    icon = "fa-solid fa-stapler"
-    
-    def list_query(self, request):
-        return select(Inventario).where(Inventario.area_stanza == AreaMagazzino.SEGRETERIA)
-
-class MagazzinoStanze(InventarioBase, model=Inventario):
-    name = "Stanze"
-    name_plural = "Stanze"
-    category = "Magazzino"
-    icon = "fa-solid fa-door-closed"
-    
-    def list_query(self, request):
-        return select(Inventario).where(Inventario.area_stanza == AreaMagazzino.STANZE)
-
-class MagazzinoMedicinali(InventarioBase, model=Inventario):
-    name = "Medicinali"
-    name_plural = "Medicinali"
-    category = "Magazzino"
-    icon = "fa-solid fa-pills"
-    
-    def list_query(self, request):
-        return select(Inventario).where(Inventario.area_stanza == AreaMagazzino.MEDICINALI)
-
-class MagazzinoPulizie(InventarioBase, model=Inventario):
-    name = "Pulizie"
-    name_plural = "Pulizie"
-    category = "Magazzino"
-    icon = "fa-solid fa-broom"
-    
-    def list_query(self, request):
-        return select(Inventario).where(Inventario.area_stanza == AreaMagazzino.PULIZIE)
-
-# --- PAZIENTI (Invariato) ---
+# --- ALTRE SEZIONI (Standard) ---
 class PazienteAdmin(ModelView, model=Paziente):
     name = "Paziente"
     name_plural = "Pazienti"
@@ -147,7 +132,7 @@ class PazienteAdmin(ModelView, model=Paziente):
         Paziente.visita_medica, Paziente.data_visita, 
         Paziente.disdetto, Paziente.data_disdetta
     ]
-
+    
     @action(name="segna_disdetto", label="❌ Segna come Disdetto", confirmation_message="Confermi?")
     def action_disdetto(self, request: Request):
         pks = request.query_params.get("pks", "").split(",")
@@ -162,7 +147,6 @@ class PazienteAdmin(ModelView, model=Paziente):
             session.commit()
         return RedirectResponse(request.url_for("admin:list", identity="paziente"), status_code=303)
 
-# --- ALTRE VISTE ---
 class PrestitoAdmin(ModelView, model=Prestito):
     name = "Prestito"
     name_plural = "Prestiti"
@@ -183,15 +167,8 @@ class ScadenzaAdmin(ModelView, model=Scadenza):
 
 # --- ATTIVAZIONE ---
 admin = Admin(app, engine)
-
-# Aggiungiamo le sezioni del magazzino (l'ordine qui decide l'ordine nel menu)
-admin.add_view(MagazzinoMano)
-admin.add_view(MagazzinoStanze)
-admin.add_view(MagazzinoSegreteria)
-admin.add_view(MagazzinoMedicinali)
-admin.add_view(MagazzinoPulizie)
-
 admin.add_view(PazienteAdmin)
+admin.add_view(InventarioAdmin) # Solo una voce, pulita
 admin.add_view(PrestitoAdmin)
 admin.add_view(PreventivoAdmin)
 admin.add_view(ScadenzaAdmin)
@@ -216,4 +193,4 @@ def import_pazienti(lista_pazienti: List[PazienteImport]):
 
 @app.get("/")
 def home():
-    return {"msg": "Gestionale Focus Rehab - Magazzino Diviso"}
+    return {"msg": "Gestionale Focus Rehab - Magazzino Unico e Colorato"}
