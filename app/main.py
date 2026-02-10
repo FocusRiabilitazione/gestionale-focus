@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Request, HTTPException
 from sqladmin import Admin, ModelView, action
-from sqlmodel import SQLModel, Session, select
+from sqlmodel import SQLModel, Session
 from datetime import date
 from starlette.responses import RedirectResponse
 from pydantic import BaseModel
@@ -11,12 +11,12 @@ from .models import Paziente, Inventario, Prestito, Preventivo, Scadenza
 
 app = FastAPI(title="Gestionale Focus Rehab")
 
-# --- STRUTTURA PER L'IMPORTAZIONE DATI ---
-# Questo serve per l'importazione massiva
+# --- STRUTTURA PER IMPORTAZIONE MASSIVA ---
+# Serve per leggere il file JSON con i 200 pazienti
 class PazienteImport(BaseModel):
     nome: str
     cognome: str
-    area: str # Deve essere: Mano-Polso, Colonna, ATM, o Muscolo-Scheletrico
+    area: str 
 
 # --- CONFIGURAZIONE PAZIENTI ---
 class PazienteAdmin(ModelView, model=Paziente):
@@ -24,7 +24,7 @@ class PazienteAdmin(ModelView, model=Paziente):
     name_plural = "Pazienti"
     icon = "fa-solid fa-user-injured"
     
-    # Estetica: Spunta verde o vuoto
+    # 1. ESTETICA: Mantiene la spunta verde (niente X rossa brutta)
     column_formatters = {
         Paziente.disdetto: lambda m, a: "✅" if m.disdetto else ""
     }
@@ -48,20 +48,10 @@ class PazienteAdmin(ModelView, model=Paziente):
         Paziente.data_disdetta
     ]
 
-    # --- LOGICA SALVATAGGIO (CORRETTA) ---
-    async def on_model_change(self, data, model, is_created, request):
-        # Logica semplificata:
-        # Se c'è la spunta...
-        if model.disdetto:
-            # ...e manca la data, mettiamo oggi.
-            if not model.data_disdetta:
-                model.data_disdetta = date.today()
-        # Se NON c'è la spunta...
-        else:
-            # ...cancelliamo la data.
-            model.data_disdetta = None
+    # NOTA: Ho rimosso 'on_model_change'.
+    # Ora la gestione della data nella scheda è totalmente manuale (come volevi).
 
-    # --- AZIONE TASTO DISDETTA ---
+    # 2. AZIONE TASTO DISDETTA (Comoda per la lista)
     @action(
         name="segna_disdetto",
         label="❌ Segna come Disdetto",
@@ -117,14 +107,14 @@ admin.add_view(ScadenzaAdmin)
 def on_startup():
     init_db()
 
-# --- FUNZIONE IMPORTAZIONE VELOCE ---
+# --- IMPORTAZIONE RAPIDA (PER I 200 PAZIENTI) ---
 @app.post("/import-rapido")
 def import_pazienti(lista_pazienti: List[PazienteImport]):
     try:
         count = 0
         with Session(engine) as session:
             for p in lista_pazienti:
-                # Crea il nuovo paziente
+                # Crea il paziente
                 nuovo = Paziente(
                     nome=p.nome, 
                     cognome=p.cognome, 
@@ -133,10 +123,10 @@ def import_pazienti(lista_pazienti: List[PazienteImport]):
                 session.add(nuovo)
                 count += 1
             session.commit()
-        return {"messaggio": f"Successo! Importati {count} pazienti."}
+        return {"messaggio": f"Fatto! Importati {count} pazienti correttamente."}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.get("/")
 def home():
-    return {"msg": "Gestionale Focus Rehab - Importatore Attivo"}
+    return {"msg": "Gestionale Focus Rehab - Pronto per Import"}
