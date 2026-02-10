@@ -7,17 +7,8 @@ from starlette.responses import RedirectResponse
 from pydantic import BaseModel
 from typing import List
 from markupsafe import Markup
-from sqlalchemy import create_engine
 
-# --- DATABASE NUOVO E PULITO (Per evitare conflitti) ---
-sqlite_file_name = "database_v8_stabile.db"
-sqlite_url = f"sqlite:///{sqlite_file_name}"
-connect_args = {"check_same_thread": False}
-engine = create_engine(sqlite_url, connect_args=connect_args)
-
-def init_db():
-    SQLModel.metadata.create_all(engine)
-
+from .database import engine, init_db
 from .models import Paziente, Inventario, Prestito, Preventivo, Scadenza, Trattamento, RigaPreventivo
 
 app = FastAPI(title="Gestionale Focus Rehab")
@@ -29,20 +20,19 @@ class InventarioImport(BaseModel):
     materiale: str; area_stanza: str; quantita: int=0; soglia_minima: int=2; obiettivo: int=5
 class PrestitoImport(BaseModel):
     oggetto: str; area: str; nome_paziente: str; cognome_paziente: str; durata_giorni: int=7
-class TrattamentoImport(BaseModel):
-    nome: str; area: str; prezzo: float
 
-# --- ENDPOINT STAMPA (Calcola il totale QUI, senza crashare il DB) ---
+# --- ENDPOINT STAMPA (NUOVO!) ---
 @app.get("/stampa_preventivo/{prev_id}", response_class=HTMLResponse)
 def stampa_preventivo(prev_id: int):
     with Session(engine) as session:
         prev = session.get(Preventivo, prev_id)
         if not prev: return "Preventivo non trovato"
         
+        # Costruiamo l'HTML per la stampa
         righe_html = ""
         totale = 0
         for riga in prev.righe:
-            nome = riga.trattamento.nome if riga.trattamento else "Servizio rimosso"
+            nome = riga.trattamento.nome if riga.trattamento else "Servizio"
             prz = riga.trattamento.prezzo_base if riga.trattamento else 0
             sub = (prz * riga.quantita) - riga.sconto
             totale += sub
@@ -65,7 +55,6 @@ def stampa_preventivo(prev_id: int):
                 {righe_html}
             </table>
             <h3 style="text-align:right; margin-top:30px;">TOTALE: € {totale:.2f}</h3>
-            <p style="margin-top:20px; font-size:0.9em; color:#555;">Note: {prev.note if prev.note else ''}</p>
             <div style="text-align:center; margin-top:50px;">
                 <button onclick="window.print()" style="padding:10px 20px; font-size:16px;">🖨️ STAMPA ADESSO</button>
             </div>
@@ -88,7 +77,9 @@ def diminuisci_quantita(request: Request, pk: int):
         if item and item.quantita > 0: item.quantita -= 1; session.add(item); session.commit()
     return RedirectResponse(request.url_for("admin:list", identity="inventario"), status_code=303)
 
-# --- 1. PAZIENTI ---
+# --- AMMINISTRAZIONE ---
+
+# 1. PAZIENTI (TUO CODICE ORIGINALE)
 class PazienteAdmin(ModelView, model=Paziente):
     name="Paziente"; name_plural="Pazienti"; icon="fa-solid fa-user-injured"
     column_formatters={Paziente.disdetto: lambda m,a: "✅" if m.disdetto else "", Paziente.visita_medica: lambda m,a: "🩺" if m.visita_medica else ""}
@@ -106,7 +97,7 @@ class PazienteAdmin(ModelView, model=Paziente):
             session.commit()
         return RedirectResponse(request.url_for("admin:list", identity="paziente"), status_code=303)
 
-# --- 2. MAGAZZINO ---
+# 2. MAGAZZINO (TUO CODICE ORIGINALE)
 class InventarioAdmin(ModelView, model=Inventario):
     name="Articolo"; name_plural="Magazzino"; icon="fa-solid fa-box"
     def formatta_con_bottoni(model, attribute):
@@ -120,7 +111,7 @@ class InventarioAdmin(ModelView, model=Inventario):
     column_list=[Inventario.materiale, Inventario.area_stanza, Inventario.quantita, Inventario.soglia_minima, Inventario.obiettivo]
     form_columns=[Inventario.materiale, Inventario.area_stanza, Inventario.quantita, Inventario.soglia_minima, Inventario.obiettivo]
 
-# --- 3. PRESTITI ---
+# 3. PRESTITI (TUO CODICE ORIGINALE)
 class PrestitoAdmin(ModelView, model=Prestito):
     name="Prestito"; name_plural="Prestiti"; icon="fa-solid fa-stopwatch"
     def list_query(self, request): return select(Prestito).where(Prestito.restituito == False)
@@ -135,37 +126,43 @@ class PrestitoAdmin(ModelView, model=Prestito):
     async def on_model_change(self, data, model, is_created, request):
         if model.data_inizio and model.durata_giorni: model.data_scadenza = model.data_inizio + timedelta(days=model.durata_giorni)
 
-# --- 4. LISTINO PREZZI ---
+# --- 4. LISTINO PREZZI (RIATTIVATO) ---
 class TrattamentoAdmin(ModelView, model=Trattamento):
     name = "Listino Prezzi"
     name_plural = "Listino Prezzi"
     icon = "fa-solid fa-tags"
     column_list = [Trattamento.nome, Trattamento.prezzo_base]
-    form_columns = [Trattamento.nome, Trattamento.area, Trattamento.prezzo_base]
+    form_columns = [Trattamento.nome, Trattamento.prezzo_base]
 
-# --- 5. PREVENTIVI (VERSIONE SICURA SENZA CRASH) ---
+# --- 5. PREVENTIVI (FUNZIONANTE E CON STAMPA) ---
 class RigaPreventivoInline(ModelView, model=RigaPreventivo):
-    # Queste colonne appaiono nella lista
     column_list = [RigaPreventivo.trattamento, RigaPreventivo.quantita, RigaPreventivo.sconto]
-    # Queste colonne appaiono nel modulo di modifica (FONDAMENTALE)
-    form_columns = [RigaPreventivo.trattamento, RigaPreventivo.quantita, RigaPreventivo.sconto]
 
 class PreventivoAdmin(ModelView, model=Preventivo):
     name = "Preventivo"
     name_plural = "Preventivi"
     icon = "fa-solid fa-file-invoice-dollar"
     
+    # Questo abilita la tabella per inserire i servizi
     inlines = [RigaPreventivoInline] 
 
     def link_stampa(model, attribute):
         return Markup(f'<a href="/stampa_preventivo/{model.id}" target="_blank" style="font-size:1.2em;">🖨️ STAMPA</a>')
 
-    column_formatters = {Preventivo.id: link_stampa}
-    column_list = [Preventivo.id, Preventivo.data_creazione, Preventivo.paziente_rel, Preventivo.oggetto]
+    column_formatters = {Preventivo.id: link_stampa} # Sostituisce l'ID col tasto stampa
+    column_list = [Preventivo.id, Preventivo.data_creazione, Preventivo.paziente_rel, Preventivo.totale_calcolato]
     form_columns = [Preventivo.paziente_rel, Preventivo.data_creazione, Preventivo.oggetto, Preventivo.note]
-    
-    # HO RIMOSSO IL CALCOLO AUTOMATICO QUI PER EVITARE IL CRASH
-    # Il totale verrà calcolato perfettamente solo al momento della STAMPA.
+
+    async def after_model_change(self, data, model, is_created, request):
+        with Session(engine) as session:
+            stmt = select(Preventivo).where(Preventivo.id == model.id)
+            prev = session.exec(stmt).first()
+            if prev and prev.righe:
+                tot = 0
+                for riga in prev.righe:
+                    if riga.trattamento: tot += (riga.trattamento.prezzo_base * riga.quantita) - riga.sconto
+                prev.totale_calcolato = tot
+                session.add(prev); session.commit()
 
 # 6. SCADENZE
 class ScadenzaAdmin(ModelView, model=Scadenza):
@@ -177,14 +174,14 @@ admin = Admin(app, engine)
 admin.add_view(PazienteAdmin)
 admin.add_view(InventarioAdmin)
 admin.add_view(PrestitoAdmin)
-admin.add_view(TrattamentoAdmin)
+admin.add_view(TrattamentoAdmin) # Riattivato
 admin.add_view(PreventivoAdmin)
 admin.add_view(ScadenzaAdmin)
 
 @app.on_event("startup")
 def on_startup(): init_db()
 
-# --- IMPORTATORI ---
+# --- IMPORTATORI (I TUOI ORIGINALI) ---
 @app.post("/import-rapido")
 def import_pazienti(l: List[PazienteImport]):
     with Session(engine) as s:
@@ -203,11 +200,5 @@ def import_prestiti(l: List[PrestitoImport]):
         for i in l:
             p = s.exec(select(Paziente).where(Paziente.nome==i.nome_paziente, Paziente.cognome==i.cognome_paziente)).first()
             s.add(Prestito(oggetto=i.oggetto, area=i.area, paziente_id=p.id if p else None, durata_giorni=i.durata_giorni))
-        s.commit()
-    return {"msg": "Ok"}
-@app.post("/import-trattamenti")
-def import_trattamenti(l: List[TrattamentoImport]):
-    with Session(engine) as s:
-        for i in l: s.add(Trattamento(nome=i.nome, area=i.area, prezzo_base=i.prezzo))
         s.commit()
     return {"msg": "Ok"}
