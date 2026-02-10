@@ -6,6 +6,7 @@ from starlette.responses import RedirectResponse
 from pydantic import BaseModel
 from typing import List
 from markupsafe import Markup
+from enum import Enum
 
 from .database import engine, init_db
 from .models import Paziente, Inventario, Prestito, Preventivo, Scadenza, AreaMagazzino
@@ -27,7 +28,6 @@ def aumenta_quantita(request: Request, pk: int):
             item.quantita += 1
             session.add(item)
             session.commit()
-    # Ricarica la pagina corrente
     return RedirectResponse(request.headers.get("referer"), status_code=303)
 
 @app.get("/magazzino/meno/{pk}")
@@ -40,95 +40,74 @@ def diminuisci_quantita(request: Request, pk: int):
             session.commit()
     return RedirectResponse(request.headers.get("referer"), status_code=303)
 
-# --- FUNZIONE FORMATTAZIONE BASE (Solo Bottoni) ---
-def formatta_quantita(model, attribute):
-    stato = ""
-    # Icona semplice basata sui numeri
-    if model.quantita <= model.soglia_minima:
-        stato = f"🔴 {model.quantita}"
-    elif model.quantita >= model.obiettivo:
-        stato = f"🌟 {model.quantita}"
-    else:
-        stato = f"✅ {model.quantita}"
+# --- FORMATTAZIONE GRAFICA (Semaforo + Badge Area) ---
+
+# 1. BADGE AREA (BLINDATO ANTI-CRASH) 🛡️
+def formatta_area_badge(model, attribute):
+    try:
+        # Tenta di recuperare il valore, gestendo sia Enum che stringhe
+        raw_val = getattr(model, "area_stanza", "Altro")
+        nome_area = "Altro"
         
-    style = "text-decoration:none; border:1px solid #ccc; padding:2px 7px; border-radius:4px; margin:0 3px; background:#fff; font-weight:bold; color:#333;"
+        # Se è un Enum (come dovrebbe essere), prendiamo il .value
+        if hasattr(raw_val, "value"):
+            nome_area = raw_val.value
+        else:
+            nome_area = str(raw_val)
+            
+        # Assegnazione Colori
+        colors = {
+            "Mano": "#3498db",        # Blu
+            "Medicinali": "#e74c3c",  # Rosso
+            "Pulizie": "#f1c40f",     # Giallo
+            "Segreteria": "#9b59b6",  # Viola
+            "Stanze": "#2ecc71"       # Verde
+        }
+        colore = colors.get(nome_area, "#95a5a6") # Grigio default
+        
+        # HTML del Badge
+        html = f'''
+            <span style="
+                background-color:{colore}; 
+                color:white; 
+                padding:4px 12px; 
+                border-radius:12px; 
+                font-size:0.85em; 
+                font-weight:bold;
+                display:inline-block;
+                min-width: 90px;
+                text-align:center;
+                box-shadow: 1px 1px 3px rgba(0,0,0,0.1);
+            ">
+                {nome_area}
+            </span>
+        '''
+        return Markup(html)
+    except:
+        return Markup("<span>Errore Visivo</span>")
+
+# 2. QUANTITÀ CON BOTTONI (Funzionante)
+def formatta_con_bottoni(model, attribute):
+    stato = ""
+    q = model.quantita if model.quantita is not None else 0
+    soglia = model.soglia_minima if model.soglia_minima is not None else 0
+    obiett = model.obiettivo if model.obiettivo is not None else 0
+
+    if q <= soglia:
+        stato = f'<span style="color:#c0392b">🔴 {q}</span>' # Rosso scuro
+    elif q >= obiett:
+        stato = f'<span style="color:#27ae60">🌟 {q}</span>' # Verde scuro
+    else:
+        stato = f'<span style="color:#2980b9">✅ {q}</span>' # Blu scuro
+        
+    style = "text-decoration:none; border:1px solid #ddd; padding:2px 8px; border-radius:4px; margin:0 6px; background:#f8f9fa; font-weight:bold; color:#333;"
     btn_meno = f'<a href="/magazzino/meno/{model.id}" style="{style}">-</a>'
     btn_piu = f'<a href="/magazzino/piu/{model.id}" style="{style}">+</a>'
     
     return Markup(f"{btn_meno} {stato} {btn_piu}")
 
 
-# --- CONFIGURAZIONE BASE MAGAZZINO (Lo "stampino" per le sotto-pagine) ---
-class InventarioBase(ModelView):
-    # Queste impostazioni valgono per tutte le sotto-pagine
-    column_formatters = { Inventario.quantita: formatta_quantita }
-    
-    # Nelle sotto-pagine non serve vedere la colonna "Area" (è ovvia)
-    column_list = [
-        Inventario.materiale, 
-        Inventario.quantita, 
-        Inventario.soglia_minima, 
-        Inventario.obiettivo
-    ]
-    
-    form_columns = [
-        Inventario.materiale,
-        Inventario.area_stanza,
-        Inventario.quantita,
-        Inventario.soglia_minima,
-        Inventario.obiettivo
-    ]
-
-# --- LE 5 SOTTO-PAGINE ---
-# Usiamo "category" per raggrupparle sotto la voce "Magazzino"
-
-class MagazzinoMano(InventarioBase, model=Inventario):
-    name = "Mano"
-    name_plural = "Mano"
-    category = "Magazzino" # <--- IL SEGRETO: Crea la cartella
-    icon = "fa-solid fa-hand"
-    
-    def list_query(self, request):
-        return select(Inventario).where(Inventario.area_stanza == AreaMagazzino.MANO)
-
-class MagazzinoMedicinali(InventarioBase, model=Inventario):
-    name = "Medicinali"
-    name_plural = "Medicinali"
-    category = "Magazzino"
-    icon = "fa-solid fa-pills"
-    
-    def list_query(self, request):
-        return select(Inventario).where(Inventario.area_stanza == AreaMagazzino.MEDICINALI)
-
-class MagazzinoPulizie(InventarioBase, model=Inventario):
-    name = "Pulizie"
-    name_plural = "Pulizie"
-    category = "Magazzino"
-    icon = "fa-solid fa-broom"
-    
-    def list_query(self, request):
-        return select(Inventario).where(Inventario.area_stanza == AreaMagazzino.PULIZIE)
-
-class MagazzinoSegreteria(InventarioBase, model=Inventario):
-    name = "Segreteria"
-    name_plural = "Segreteria"
-    category = "Magazzino"
-    icon = "fa-solid fa-stapler"
-    
-    def list_query(self, request):
-        return select(Inventario).where(Inventario.area_stanza == AreaMagazzino.SEGRETERIA)
-
-class MagazzinoStanze(InventarioBase, model=Inventario):
-    name = "Stanze"
-    name_plural = "Stanze"
-    category = "Magazzino"
-    icon = "fa-solid fa-door-closed"
-    
-    def list_query(self, request):
-        return select(Inventario).where(Inventario.area_stanza == AreaMagazzino.STANZE)
-
-
-# --- PAZIENTI ---
+# --- CONFIGURAZIONE PAZIENTI ---
 class PazienteAdmin(ModelView, model=Paziente):
     name = "Paziente"
     name_plural = "Pazienti"
@@ -164,6 +143,54 @@ class PazienteAdmin(ModelView, model=Paziente):
             session.commit()
         return RedirectResponse(request.url_for("admin:list", identity="paziente"), status_code=303)
 
+
+# --- CONFIGURAZIONE MAGAZZINO UNICO ---
+class InventarioAdmin(ModelView, model=Inventario):
+    name = "Magazzino"
+    name_plural = "Magazzino"
+    icon = "fa-solid fa-boxes-stacked" # L'icona tornerà visibile qui!
+
+    # Etichette brevi per risparmiare spazio
+    column_labels = {
+        Inventario.area_stanza: "Reparto",
+        Inventario.materiale: "Articolo",
+        Inventario.quantita: "Giacenza",
+        Inventario.soglia_minima: "Min",
+        Inventario.obiettivo: "Target"
+    }
+
+    # Applichiamo le formattazioni (Colori e Bottoni)
+    column_formatters = {
+        Inventario.quantita: formatta_con_bottoni,
+        Inventario.area_stanza: formatta_area_badge
+    }
+
+    # Ordine colonne: Il Reparto è il primo a sinistra
+    column_list = [
+        Inventario.area_stanza, 
+        Inventario.materiale, 
+        Inventario.quantita, 
+        Inventario.soglia_minima, 
+        Inventario.obiettivo
+    ]
+    
+    # RAGGRUPPAMENTO AUTOMATICO
+    # Questo è fondamentale: ordina la lista per reparto.
+    # Così vedrai prima tutto il blocco 'Mano', poi tutto 'Medicinali', ecc.
+    column_default_sort = "area_stanza" 
+
+    column_searchable_list = [Inventario.materiale]
+    column_filters = [Inventario.area_stanza]
+    
+    form_columns = [
+        Inventario.materiale,
+        Inventario.area_stanza,
+        Inventario.quantita,
+        Inventario.soglia_minima,
+        Inventario.obiettivo
+    ]
+
+
 # --- ALTRE VISTE ---
 class PrestitoAdmin(ModelView, model=Prestito):
     name = "Prestito"
@@ -186,14 +213,7 @@ class ScadenzaAdmin(ModelView, model=Scadenza):
 # --- ATTIVAZIONE ---
 admin = Admin(app, engine)
 admin.add_view(PazienteAdmin)
-
-# Aggiungiamo le 5 sotto-pagine (L'ordine qui decide l'ordine nel menu)
-admin.add_view(MagazzinoMano)
-admin.add_view(MagazzinoMedicinali)
-admin.add_view(MagazzinoPulizie)
-admin.add_view(MagazzinoSegreteria)
-admin.add_view(MagazzinoStanze)
-
+admin.add_view(InventarioAdmin) # Solo una voce, pulita
 admin.add_view(PrestitoAdmin)
 admin.add_view(PreventivoAdmin)
 admin.add_view(ScadenzaAdmin)
@@ -218,4 +238,4 @@ def import_pazienti(lista_pazienti: List[PazienteImport]):
 
 @app.get("/")
 def home():
-    return {"msg": "Gestionale Focus Rehab - Sotto-pagine Attive"}
+    return {"msg": "Gestionale Focus Rehab - Magazzino Pulito e Colorato"}
