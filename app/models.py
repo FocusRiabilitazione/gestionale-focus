@@ -4,8 +4,8 @@ from sqlmodel import SQLModel, Field
 
 # --- ANAGRAFICA PAZIENTI ---
 class Paziente(SQLModel, table=True):
-    # Usiamo v5 per ripartire da zero e puliti
-    __tablename__ = "pazienti_v5" 
+    # TRUCCO: Cambio nome per resettare la tabella automaticamente
+    __tablename__ = "pazienti_v6" 
     
     id: Optional[int] = Field(default=None, primary_key=True)
     
@@ -13,7 +13,7 @@ class Paziente(SQLModel, table=True):
     nome: str
     cognome: str
     
-    # Qui il trucco: nel DB è una stringa normale, così non dà errori
+    # Nel database salviamo solo testo semplice (così non si rompe mai)
     area: str 
     
     # Facoltativi
@@ -26,7 +26,7 @@ class Paziente(SQLModel, table=True):
     visita_esterna: bool = False
     data_visita: Optional[date] = None
 
-# --- ALTRE TABELLE (Standard) ---
+# --- ALTRE TABELLE ---
 class Inventario(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     materiale: str
