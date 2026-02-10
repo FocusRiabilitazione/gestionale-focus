@@ -13,14 +13,11 @@ from .models import Paziente, Inventario, Prestito, Preventivo, Scadenza
 app = FastAPI(title="Gestionale Focus Rehab")
 
 # --- STRUTTURE PER IMPORTAZIONE MASSIVA ---
-
-# 1. Per i Pazienti
 class PazienteImport(BaseModel):
     nome: str
     cognome: str
     area: str
 
-# 2. Per il Magazzino
 class InventarioImport(BaseModel):
     materiale: str
     area_stanza: str 
@@ -28,7 +25,6 @@ class InventarioImport(BaseModel):
     soglia_minima: int = 2
     obiettivo: int = 5
 
-# 3. Per i Prestiti
 class PrestitoImport(BaseModel):
     oggetto: str
     area: str
@@ -57,46 +53,12 @@ def diminuisci_quantita(request: Request, pk: int):
             session.commit()
     return RedirectResponse(request.url_for("admin:list", identity="inventario"), status_code=303)
 
-# --- PAZIENTI ---
-class PazienteAdmin(ModelView, model=Paziente):
-    name = "Paziente"
-    name_plural = "Pazienti"
-    icon = "fa-solid fa-user-injured"
-    
-    column_formatters = {
-        Paziente.disdetto: lambda m, a: "✅" if m.disdetto else "",
-        Paziente.visita_medica: lambda m, a: "🩺" if m.visita_medica else ""
-    }
-    column_list = [
-        Paziente.cognome, Paziente.nome, Paziente.area,
-        Paziente.visita_medica, Paziente.data_visita,
-        Paziente.disdetto, Paziente.data_disdetta
-    ]
-    column_searchable_list = [Paziente.cognome, Paziente.nome]
-    form_columns = [
-        Paziente.nome, Paziente.cognome, Paziente.area, Paziente.note,
-        Paziente.visita_medica, Paziente.data_visita, 
-        Paziente.disdetto, Paziente.data_disdetta
-    ]
+# --- FUNZIONI DI FORMATTAZIONE (Spostate fuori per sicurezza) ---
 
-    @action(name="segna_disdetto", label="❌ Segna come Disdetto", confirmation_message="Confermi?")
-    def action_disdetto(self, request: Request):
-        pks = request.query_params.get("pks", "").split(",")
-        with self.session_maker() as session:
-            for pk in pks:
-                if pk.isdigit():
-                    model = session.get(Paziente, int(pk))
-                    if model:
-                        model.disdetto = True
-                        model.data_disdetta = date.today()
-                        session.add(model)
-            session.commit()
-        return RedirectResponse(request.url_for("admin:list", identity="paziente"), status_code=303)
-
-# --- FUNZIONE DI FORMATTAZIONE (SPOSTATA QUI FUORI PER EVITARE ERRORI) ---
-def formatta_con_bottoni(model, attribute):
+def formatta_bottoni_magazzino(model, attribute):
+    """Disegna i bottoni + e - e il semaforo"""
     stato = ""
-    # Controllo per evitare errori se i valori sono None
+    # Usiamo 0 di default se è None per evitare crash
     q = model.quantita if model.quantita is not None else 0
     soglia = model.soglia_minima if model.soglia_minima is not None else 0
     obiett = model.obiettivo if model.obiettivo is not None else 0
@@ -114,38 +76,70 @@ def formatta_con_bottoni(model, attribute):
     
     return Markup(f"{btn_meno} &nbsp; <b>{stato}</b> &nbsp; {btn_piu}")
 
-# --- MAGAZZINO ---
+def formatta_scadenza_prestito(model, attribute):
+    """Calcola i giorni mancanti"""
+    if not model.data_scadenza:
+        return "⏳ In corso"
+    
+    oggi = date.today()
+    giorni_mancanti = (model.data_scadenza - oggi).days
+
+    if giorni_mancanti < 0:
+        return Markup(f'<span style="color:red; font-weight:bold;">🔴 SCADUTO da {abs(giorni_mancanti)} gg!</span>')
+    elif giorni_mancanti == 0:
+        return Markup('<span style="color:orange; font-weight:bold;">🟠 SCADE OGGI!</span>')
+    else:
+        return Markup(f"⏳ Scade tra {giorni_mancanti} gg")
+
+
+# --- CONFIGURAZIONE ADMIN ---
+
+# 1. PAZIENTI
+class PazienteAdmin(ModelView, model=Paziente):
+    name = "Paziente"
+    name_plural = "Pazienti"
+    icon = "fa-solid fa-user-injured"
+    
+    column_formatters = {
+        Paziente.disdetto: lambda m, a: "✅" if m.disdetto else "",
+        Paziente.visita_medica: lambda m, a: "🩺" if m.visita_medica else ""
+    }
+    column_list = [Paziente.cognome, Paziente.nome, Paziente.area, Paziente.visita_medica, Paziente.data_visita, Paziente.disdetto]
+    column_searchable_list = [Paziente.cognome, Paziente.nome]
+    form_columns = [Paziente.nome, Paziente.cognome, Paziente.area, Paziente.note, Paziente.visita_medica, Paziente.data_visita, Paziente.disdetto, Paziente.data_disdetta]
+
+    @action(name="segna_disdetto", label="❌ Segna come Disdetto", confirmation_message="Confermi?")
+    def action_disdetto(self, request: Request):
+        pks = request.query_params.get("pks", "").split(",")
+        with self.session_maker() as session:
+            for pk in pks:
+                if pk.isdigit():
+                    model = session.get(Paziente, int(pk))
+                    if model:
+                        model.disdetto = True
+                        model.data_disdetta = date.today()
+                        session.add(model)
+            session.commit()
+        return RedirectResponse(request.url_for("admin:list", identity="paziente"), status_code=303)
+
+# 2. MAGAZZINO
 class InventarioAdmin(ModelView, model=Inventario):
     name = "Articolo"
     name_plural = "Magazzino"
     icon = "fa-solid fa-box"
 
-    # Ora la funzione è esterna e funziona correttamente
+    # Usiamo la funzione definita FUORI dalla classe
     column_formatters = {
-        Inventario.quantita: formatta_con_bottoni
+        Inventario.quantita: formatta_bottoni_magazzino
     }
 
-    column_list = [
-        Inventario.materiale, 
-        Inventario.area_stanza, 
-        Inventario.quantita, 
-        Inventario.soglia_minima, 
-        Inventario.obiettivo
-    ]
-    
+    column_list = [Inventario.materiale, Inventario.area_stanza, Inventario.quantita, Inventario.soglia_minima, Inventario.obiettivo]
     column_default_sort = "area_stanza" 
     column_searchable_list = [Inventario.materiale]
     column_filters = [Inventario.area_stanza]
+    form_columns = [Inventario.materiale, Inventario.area_stanza, Inventario.quantita, Inventario.soglia_minima, Inventario.obiettivo]
 
-    form_columns = [
-        Inventario.materiale,
-        Inventario.area_stanza,
-        Inventario.quantita,
-        Inventario.soglia_minima,
-        Inventario.obiettivo
-    ]
-
-# --- PRESTITI ---
+# 3. PRESTITI
 class PrestitoAdmin(ModelView, model=Prestito):
     name = "Prestito"
     name_plural = "Prestiti"
@@ -154,46 +148,18 @@ class PrestitoAdmin(ModelView, model=Prestito):
     def list_query(self, request):
         return select(Prestito).where(Prestito.restituito == False)
 
-    def formatta_scadenza(model, attribute):
-        if not model.data_scadenza:
-            return "⏳ In corso"
-        
-        oggi = date.today()
-        giorni_mancanti = (model.data_scadenza - oggi).days
-
-        if giorni_mancanti < 0:
-            return Markup(f'<span style="color:red; font-weight:bold;">🔴 SCADUTO da {abs(giorni_mancanti)} gg!</span>')
-        elif giorni_mancanti == 0:
-            return Markup('<span style="color:orange; font-weight:bold;">🟠 SCADE OGGI!</span>')
-        else:
-            return Markup(f"⏳ Scade tra {giorni_mancanti} gg")
-
     column_formatters = {
-        Prestito.data_scadenza: formatta_scadenza
+        Prestito.data_scadenza: formatta_scadenza_prestito
     }
 
-    column_list = [
-        Prestito.area,
-        Prestito.oggetto,
-        Prestito.paziente,
-        Prestito.data_inizio,
-        Prestito.data_scadenza
-    ]
-
-    form_columns = [
-        Prestito.area,
-        Prestito.oggetto,
-        Prestito.paziente,
-        Prestito.data_inizio,
-        Prestito.durata_giorni,
-        Prestito.restituito
-    ]
+    column_list = [Prestito.area, Prestito.oggetto, Prestito.paziente, Prestito.data_inizio, Prestito.data_scadenza]
+    form_columns = [Prestito.area, Prestito.oggetto, Prestito.paziente, Prestito.data_inizio, Prestito.durata_giorni, Prestito.restituito]
 
     async def on_model_change(self, data, model, is_created, request):
         if model.data_inizio and model.durata_giorni:
             model.data_scadenza = model.data_inizio + timedelta(days=model.durata_giorni)
 
-# --- ALTRE VISTE ---
+# 4. ALTRE VISTE
 class PreventivoAdmin(ModelView, model=Preventivo):
     name = "Preventivo"
     name_plural = "Preventivi"
@@ -218,7 +184,7 @@ admin.add_view(ScadenzaAdmin)
 def on_startup():
     init_db()
 
-# --- IMPORTATORE PAZIENTI ---
+# --- IMPORTATORI (Endpoints per ricaricare i dati) ---
 @app.post("/import-rapido")
 def import_pazienti(lista_pazienti: List[PazienteImport]):
     try:
@@ -233,7 +199,6 @@ def import_pazienti(lista_pazienti: List[PazienteImport]):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-# --- IMPORTATORE MAGAZZINO ---
 @app.post("/import-magazzino")
 def import_magazzino(lista_articoli: List[InventarioImport]):
     try:
@@ -254,24 +219,20 @@ def import_magazzino(lista_articoli: List[InventarioImport]):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-# --- IMPORTATORE PRESTITI ---
 @app.post("/import-prestiti")
 def import_prestiti(lista_prestiti: List[PrestitoImport]):
     try:
         count = 0
         with Session(engine) as session:
             for item in lista_prestiti:
-                # 1. CERCA IL PAZIENTE NEL DATABASE
-                statement = select(Paziente).where(
+                # Cerca paziente dal nome
+                stmt = select(Paziente).where(
                     Paziente.nome == item.nome_paziente, 
                     Paziente.cognome == item.cognome_paziente
                 )
-                results = session.exec(statement)
-                paziente_trovato = results.first()
-                
+                paziente_trovato = session.exec(stmt).first()
                 pid = paziente_trovato.id if paziente_trovato else None
 
-                # 2. CREA IL PRESTITO
                 nuovo = Prestito(
                     oggetto=item.oggetto,
                     area=item.area,
@@ -289,4 +250,4 @@ def import_prestiti(lista_prestiti: List[PrestitoImport]):
 
 @app.get("/")
 def home():
-    return {"msg": "Gestionale Focus Rehab - Tutto Pronto e Funzionante"}
+    return {"msg": "Gestionale Focus Rehab - Ripristino"}
