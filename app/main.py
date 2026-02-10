@@ -14,7 +14,7 @@ class PazienteAdmin(ModelView, model=Paziente):
     name_plural = "Pazienti"
     icon = "fa-solid fa-user-injured"
     
-    # Cosa vedi nella lista
+    # Lista colonne
     column_list = [
         Paziente.cognome, 
         Paziente.nome, 
@@ -23,20 +23,11 @@ class PazienteAdmin(ModelView, model=Paziente):
         Paziente.data_disdetta
     ]
     
-    # --- 1. MENU A TENDINA (Metodo Sicuro) ---
-    form_args = dict(
-        area=dict(
-            choices=[
-                ("Mano-Polso", "Mano-Polso"),
-                ("Colonna", "Colonna"),
-                ("ATM", "ATM"),
-                ("Muscolo-Scheletrico", "Muscolo-Scheletrico")
-            ],
-            label="Area di Competenza"
-        )
-    )
-
-    # Ordine campi nel form di inserimento
+    # Ricerca (Ora possiamo riprovarci perché la tabella è nuova)
+    column_searchable_list = [Paziente.cognome, Paziente.nome]
+    
+    # Ordine campi nel form
+    # NOTA: Non scriviamo nulla sul menu a tendina. Apparirà da solo.
     form_columns = [
         Paziente.nome, 
         Paziente.cognome, 
@@ -46,11 +37,11 @@ class PazienteAdmin(ModelView, model=Paziente):
         Paziente.data_disdetta
     ]
 
-    # --- 2. TASTO DISDETTA ---
+    # AZIONE DISDETTA
     @action(
         name="segna_disdetto",
         label="❌ Segna come Disdetto",
-        confirmation_message="Confermi la disdetta? Verrà inserita la data di oggi."
+        confirmation_message="Confermi la disdetta?"
     )
     async def action_disdetto(self, request: Request):
         pks = request.query_params.get("pks", "").split(",")
@@ -65,7 +56,7 @@ class PazienteAdmin(ModelView, model=Paziente):
                 session.commit()
         return
 
-# --- ALTRE VISTE (Standard) ---
+# --- ALTRE VISTE ---
 class InventarioAdmin(ModelView, model=Inventario):
     name = "Articolo"
     name_plural = "Magazzino"
@@ -104,4 +95,4 @@ def on_startup():
 
 @app.get("/")
 def home():
-    return {"msg": "Gestionale Focus Rehab - Completo"}
+    return {"msg": "Gestionale Focus Rehab - Modalità Automatica"}
