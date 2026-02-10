@@ -7,8 +7,17 @@ from starlette.responses import RedirectResponse
 from pydantic import BaseModel
 from typing import List
 from markupsafe import Markup
+from sqlalchemy import create_engine
 
-from .database import engine, init_db
+# --- DATABASE NUOVO E PULITO (Per evitare conflitti) ---
+sqlite_file_name = "database_v8_stabile.db"
+sqlite_url = f"sqlite:///{sqlite_file_name}"
+connect_args = {"check_same_thread": False}
+engine = create_engine(sqlite_url, connect_args=connect_args)
+
+def init_db():
+    SQLModel.metadata.create_all(engine)
+
 from .models import Paziente, Inventario, Prestito, Preventivo, Scadenza, Trattamento, RigaPreventivo
 
 app = FastAPI(title="Gestionale Focus Rehab")
@@ -23,7 +32,7 @@ class PrestitoImport(BaseModel):
 class TrattamentoImport(BaseModel):
     nome: str; area: str; prezzo: float
 
-# --- ENDPOINT STAMPA ---
+# --- ENDPOINT STAMPA (Calcola il totale QUI, senza crashare il DB) ---
 @app.get("/stampa_preventivo/{prev_id}", response_class=HTMLResponse)
 def stampa_preventivo(prev_id: int):
     with Session(engine) as session:
@@ -33,7 +42,7 @@ def stampa_preventivo(prev_id: int):
         righe_html = ""
         totale = 0
         for riga in prev.righe:
-            nome = riga.trattamento.nome if riga.trattamento else "Servizio"
+            nome = riga.trattamento.nome if riga.trattamento else "Servizio rimosso"
             prz = riga.trattamento.prezzo_base if riga.trattamento else 0
             sub = (prz * riga.quantita) - riga.sconto
             totale += sub
@@ -132,12 +141,13 @@ class TrattamentoAdmin(ModelView, model=Trattamento):
     name_plural = "Listino Prezzi"
     icon = "fa-solid fa-tags"
     column_list = [Trattamento.nome, Trattamento.prezzo_base]
-    form_columns = [Trattamento.nome, Trattamento.prezzo_base]
+    form_columns = [Trattamento.nome, Trattamento.area, Trattamento.prezzo_base]
 
-# --- 5. PREVENTIVI (CORRETTO!!!) ---
+# --- 5. PREVENTIVI (VERSIONE SICURA SENZA CRASH) ---
 class RigaPreventivoInline(ModelView, model=RigaPreventivo):
+    # Queste colonne appaiono nella lista
     column_list = [RigaPreventivo.trattamento, RigaPreventivo.quantita, RigaPreventivo.sconto]
-    # ECCO LA RIGA CHE MANCAVA:
+    # Queste colonne appaiono nel modulo di modifica (FONDAMENTALE)
     form_columns = [RigaPreventivo.trattamento, RigaPreventivo.quantita, RigaPreventivo.sconto]
 
 class PreventivoAdmin(ModelView, model=Preventivo):
@@ -145,26 +155,17 @@ class PreventivoAdmin(ModelView, model=Preventivo):
     name_plural = "Preventivi"
     icon = "fa-solid fa-file-invoice-dollar"
     
-    inlines = [RigaPreventivoInline] # Adesso funzionerà
+    inlines = [RigaPreventivoInline] 
 
     def link_stampa(model, attribute):
         return Markup(f'<a href="/stampa_preventivo/{model.id}" target="_blank" style="font-size:1.2em;">🖨️ STAMPA</a>')
 
     column_formatters = {Preventivo.id: link_stampa}
-    column_list = [Preventivo.id, Preventivo.data_creazione, Preventivo.paziente_rel, Preventivo.totale_calcolato]
-    form_columns = [Preventivo.paziente_rel, Preventivo.data_creazione, Preventivo.oggetto, Preventivo.note, Preventivo.accettato]
-
-    async def after_model_change(self, data, model, is_created, request):
-        with Session(engine) as session:
-            stmt = select(Preventivo).where(Preventivo.id == model.id)
-            prev = session.exec(stmt).first()
-            if prev and prev.righe:
-                tot = 0
-                for riga in prev.righe:
-                    if riga.trattamento:
-                        tot += (riga.trattamento.prezzo_base * riga.quantita) - riga.sconto
-                prev.totale_calcolato = tot
-                session.add(prev); session.commit()
+    column_list = [Preventivo.id, Preventivo.data_creazione, Preventivo.paziente_rel, Preventivo.oggetto]
+    form_columns = [Preventivo.paziente_rel, Preventivo.data_creazione, Preventivo.oggetto, Preventivo.note]
+    
+    # HO RIMOSSO IL CALCOLO AUTOMATICO QUI PER EVITARE IL CRASH
+    # Il totale verrà calcolato perfettamente solo al momento della STAMPA.
 
 # 6. SCADENZE
 class ScadenzaAdmin(ModelView, model=Scadenza):
