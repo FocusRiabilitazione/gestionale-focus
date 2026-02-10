@@ -17,7 +17,6 @@ class AreaPrestito(str, Enum):
 # --- PAZIENTI ---
 class Paziente(SQLModel, table=True):
     __tablename__ = "pazienti_visite_v2"
-    
     id: Optional[int] = Field(default=None, primary_key=True)
     nome: str
     cognome: str
@@ -31,32 +30,35 @@ class Paziente(SQLModel, table=True):
     def __str__(self):
         return f"{self.cognome} {self.nome}"
 
-# --- MAGAZZINO (Con le colonne nuove!) ---
+# --- MAGAZZINO ---
 class Inventario(SQLModel, table=True):
     __tablename__ = "inventario_smart_v2"
-    
     id: Optional[int] = Field(default=None, primary_key=True)
     materiale: str
     area_stanza: str 
     quantita: int = Field(default=0)
-    soglia_minima: int = Field(default=2) # <--- QUESTA MANCAVA NEL VECCHIO DB
-    obiettivo: int = Field(default=5)     # <--- QUESTA MANCAVA NEL VECCHIO DB
+    soglia_minima: int = Field(default=2)
+    obiettivo: int = Field(default=5)
 
 # --- PRESTITI ---
 class Prestito(SQLModel, table=True):
     __tablename__ = "prestiti_smart_v1"
-    
     id: Optional[int] = Field(default=None, primary_key=True)
     oggetto: str
     area: AreaPrestito = Field(default=AreaPrestito.OGGETTI)
-    
     paziente_id: Optional[int] = Field(default=None, foreign_key="pazienti_visite_v2.id")
     paziente: Optional[Paziente] = Relationship()
-
     data_inizio: date = Field(default_factory=date.today)
     durata_giorni: int = Field(default=7)
     data_scadenza: Optional[date] = None 
     restituito: bool = False
+
+# --- PREVENTIVI (VERSIONE STABILE) ---
+class Preventivo(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    paziente: str
+    totale: float
+    data_creazione: date = Field(default_factory=date.today)
 
 # --- SCADENZE ---
 class Scadenza(SQLModel, table=True):
