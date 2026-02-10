@@ -28,13 +28,13 @@ class InventarioImport(BaseModel):
     soglia_minima: int = 2
     obiettivo: int = 5
 
-# 3. Per i Prestiti (NUOVO)
+# 3. Per i Prestiti
 class PrestitoImport(BaseModel):
     oggetto: str
-    area: str # "Oggetti" o "Elettromedicali"
+    area: str
     nome_paziente: str
     cognome_paziente: str
-    durata_giorni: int = 7 # Se non lo scrivi mette 7 giorni
+    durata_giorni: int = 7
 
 # --- ENDPOINT RAPIDI (+ e -) ---
 @app.get("/magazzino/piu/{pk}")
@@ -93,27 +93,34 @@ class PazienteAdmin(ModelView, model=Paziente):
             session.commit()
         return RedirectResponse(request.url_for("admin:list", identity="paziente"), status_code=303)
 
+# --- FUNZIONE DI FORMATTAZIONE (SPOSTATA QUI FUORI PER EVITARE ERRORI) ---
+def formatta_con_bottoni(model, attribute):
+    stato = ""
+    # Controllo per evitare errori se i valori sono None
+    q = model.quantita if model.quantita is not None else 0
+    soglia = model.soglia_minima if model.soglia_minima is not None else 0
+    obiett = model.obiettivo if model.obiettivo is not None else 0
+
+    if q <= soglia:
+        stato = f"🔴 {q} (ORDINA!)"
+    elif q >= obiett:
+        stato = f"🌟 {q} (Pieno)"
+    else:
+        stato = f"✅ {q} (Ok)"
+        
+    style = "text-decoration:none; border:1px solid #ccc; padding:2px 6px; border-radius:4px; margin:0 2px; background:#f9f9f9;"
+    btn_meno = f'<a href="/magazzino/meno/{model.id}" style="{style}">➖</a>'
+    btn_piu = f'<a href="/magazzino/piu/{model.id}" style="{style}">➕</a>'
+    
+    return Markup(f"{btn_meno} &nbsp; <b>{stato}</b> &nbsp; {btn_piu}")
+
 # --- MAGAZZINO ---
 class InventarioAdmin(ModelView, model=Inventario):
     name = "Articolo"
     name_plural = "Magazzino"
     icon = "fa-solid fa-box"
 
-    def formatta_con_bottoni(model, attribute):
-        stato = ""
-        if model.quantita <= model.soglia_minima:
-            stato = f"🔴 {model.quantita} (ORDINA!)"
-        elif model.quantita >= model.obiettivo:
-            stato = f"🌟 {model.quantita} (Pieno)"
-        else:
-            stato = f"✅ {model.quantita} (Ok)"
-            
-        style = "text-decoration:none; border:1px solid #ccc; padding:2px 6px; border-radius:4px; margin:0 2px; background:#f9f9f9;"
-        btn_meno = f'<a href="/magazzino/meno/{model.id}" style="{style}">➖</a>'
-        btn_piu = f'<a href="/magazzino/piu/{model.id}" style="{style}">➕</a>'
-        
-        return Markup(f"{btn_meno} &nbsp; <b>{stato}</b> &nbsp; {btn_piu}")
-
+    # Ora la funzione è esterna e funziona correttamente
     column_formatters = {
         Inventario.quantita: formatta_con_bottoni
     }
@@ -247,7 +254,7 @@ def import_magazzino(lista_articoli: List[InventarioImport]):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-# --- IMPORTATORE PRESTITI (NUOVO) ---
+# --- IMPORTATORE PRESTITI ---
 @app.post("/import-prestiti")
 def import_prestiti(lista_prestiti: List[PrestitoImport]):
     try:
@@ -255,7 +262,6 @@ def import_prestiti(lista_prestiti: List[PrestitoImport]):
         with Session(engine) as session:
             for item in lista_prestiti:
                 # 1. CERCA IL PAZIENTE NEL DATABASE
-                # Usiamo select per trovare l'ID basandoci su Nome e Cognome
                 statement = select(Paziente).where(
                     Paziente.nome == item.nome_paziente, 
                     Paziente.cognome == item.cognome_paziente
@@ -263,17 +269,15 @@ def import_prestiti(lista_prestiti: List[PrestitoImport]):
                 results = session.exec(statement)
                 paziente_trovato = results.first()
                 
-                # Se lo troviamo, prendiamo il suo ID, altrimenti None
                 pid = paziente_trovato.id if paziente_trovato else None
 
                 # 2. CREA IL PRESTITO
                 nuovo = Prestito(
                     oggetto=item.oggetto,
                     area=item.area,
-                    paziente_id=pid, # Qui avviene il collegamento magico
+                    paziente_id=pid,
                     durata_giorni=item.durata_giorni,
                     data_inizio=date.today(),
-                    # La data di scadenza la calcoliamo subito
                     data_scadenza=date.today() + timedelta(days=item.durata_giorni)
                 )
                 session.add(nuovo)
@@ -285,4 +289,4 @@ def import_prestiti(lista_prestiti: List[PrestitoImport]):
 
 @app.get("/")
 def home():
-    return {"msg": "Gestionale Focus Rehab - Tutto Pronto"}
+    return {"msg": "Gestionale Focus Rehab - Tutto Pronto e Funzionante"}
