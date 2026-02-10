@@ -3,44 +3,51 @@ from datetime import date
 from sqlmodel import SQLModel, Field
 from enum import Enum
 
-# --- DEFINIZIONE MENU A TENDINA ---
+# --- MENU A TENDINA PAZIENTI ---
 class AreaEnum(str, Enum):
     MANO = "Mano-Polso"
     COLONNA = "Colonna"
     ATM = "ATM"
     MUSCOLO = "Muscolo-Scheletrico"
 
-# --- ANAGRAFICA PAZIENTI ---
+# --- NUOVO MENU A TENDINA MAGAZZINO ---
+class AreaMagazzino(str, Enum):
+    SEGRETERIA = "Segreteria"
+    MANO = "Mano"
+    STANZE = "Stanze"
+    MEDICINALI = "Medicinali"
+    PULIZIE = "Pulizie"
+
+# --- ANAGRAFICA PAZIENTI (Invariata) ---
 class Paziente(SQLModel, table=True):
-    # Cambio nome per forzare l'aggiunta delle nuove colonne
     __tablename__ = "pazienti_visite_v1" 
-    
     id: Optional[int] = Field(default=None, primary_key=True)
     nome: str
     cognome: str
-    
-    # Menu a tendina nativo
     area: AreaEnum = Field(default=AreaEnum.MUSCOLO)
-    
     note: Optional[str] = None
-    
-    # DISDETTE
     disdetto: bool = False
     data_disdetta: Optional[date] = None
-    
-    # NUOVI CAMPI: VISITE MEDICHE (Manuale)
-    visita_medica: bool = Field(default=False, description="Deve fare una visita?")
+    visita_medica: bool = Field(default=False)
     data_visita: Optional[date] = None
 
-# --- ALTRE TABELLE (INVARIATE) ---
+# --- MAGAZZINO (AGGIORNATO) ---
 class Inventario(SQLModel, table=True):
+    # Cambio nome per creare la tabella nuova pulita
+    __tablename__ = "inventario_smart_v1"
+    
     id: Optional[int] = Field(default=None, primary_key=True)
+    
     materiale: str
-    quantita: int = 0
-    area_stanza: str 
-    obiettivo: int = 5
-    soglia_minima: int = 2
+    
+    # Menu a tendina collegato alla lista sopra
+    area_stanza: AreaMagazzino = Field(default=AreaMagazzino.STANZE)
+    
+    quantita: int = Field(default=0, description="Quanti ne abbiamo ora")
+    soglia_minima: int = Field(default=2, description="Quando scatta l'allarme")
+    obiettivo: int = Field(default=5, description="Quanti dovremmo averne")
 
+# --- ALTRE TABELLE ---
 class Prestito(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     paziente_nome: str 
