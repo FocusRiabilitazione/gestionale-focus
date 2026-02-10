@@ -4,25 +4,27 @@ from sqlmodel import SQLModel, Field
 
 # --- ANAGRAFICA PAZIENTI ---
 class Paziente(SQLModel, table=True):
+    # TRUCCO: Cambiamo nome alla tabella nel DB per ignorare quella vecchia rotta
+    __tablename__ = "pazienti_v2" 
+    
     id: Optional[int] = Field(default=None, primary_key=True)
     
     # Campi Obbligatori
     nome: str
     cognome: str
-    area: str  # Menu a tendina gestito in main.py
+    area: str
     
-    # Campi Facoltativi (Solo Note)
+    # Campi Facoltativi
     note: Optional[str] = None
     
-    # Stati (Gestiti dai pulsanti)
+    # Stati
     disdetto: bool = False
     data_disdetta: Optional[date] = None
     
-    # Visita esterna
     visita_esterna: bool = False
     data_visita: Optional[date] = None
 
-# --- MAGAZZINO ---
+# --- ALTRE TABELLE (Rimangono uguali) ---
 class Inventario(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     materiale: str
@@ -31,7 +33,6 @@ class Inventario(SQLModel, table=True):
     obiettivo: int = 5
     soglia_minima: int = 2
 
-# --- PRESTITI ---
 class Prestito(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     paziente_nome: str 
@@ -40,7 +41,6 @@ class Prestito(SQLModel, table=True):
     data_scadenza: date
     restituito: bool = False
 
-# --- PREVENTIVI ---
 class Preventivo(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     paziente: str
@@ -49,7 +49,6 @@ class Preventivo(SQLModel, table=True):
     data_creazione: date = Field(default_factory=date.today)
     note: Optional[str] = None
 
-# --- SCADENZE ---
 class Scadenza(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     descrizione: str
