@@ -22,7 +22,7 @@ class AreaTrattamento(str, Enum):
     VISITA = "Visita"
     ALTRO = "Altro"
 
-# --- 1. PAZIENTI (TUO CODICE ORIGINALE - INTOCCATO) ---
+# --- 1. PAZIENTI (TUO CODICE ORIGINALE) ---
 class Paziente(SQLModel, table=True):
     __tablename__ = "pazienti_visite_v2"
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -41,7 +41,7 @@ class Paziente(SQLModel, table=True):
     def __str__(self):
         return f"{self.cognome} {self.nome}"
 
-# --- 2. MAGAZZINO (TUO CODICE ORIGINALE - INTOCCATO) ---
+# --- 2. MAGAZZINO (TUO CODICE ORIGINALE) ---
 class Inventario(SQLModel, table=True):
     __tablename__ = "inventario_smart_v2"
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -51,7 +51,7 @@ class Inventario(SQLModel, table=True):
     soglia_minima: int = Field(default=2)
     obiettivo: int = Field(default=5)
 
-# --- 3. PRESTITI (TUO CODICE ORIGINALE - INTOCCATO) ---
+# --- 3. PRESTITI (TUO CODICE ORIGINALE) ---
 class Prestito(SQLModel, table=True):
     __tablename__ = "prestiti_smart_v1"
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -65,36 +65,32 @@ class Prestito(SQLModel, table=True):
     restituito: bool = False
 
 # =========================================================
-# SEZIONE PREVENTIVI E LISTINO (AGGIORNATA E PULITA)
+# DA QUI IN GIÙ È LA NUOVA SEZIONE PREVENTIVI (RESETTATA)
 # =========================================================
 
-# --- 4. LISTINO PREZZI (Nuova tabella per evitare conflitti) ---
+# --- 4. LISTINO PREZZI (Fondamentale per il menu a tendina) ---
 class Trattamento(SQLModel, table=True):
-    __tablename__ = "listino_prezzi_finale" 
+    __tablename__ = "listino_prezzi_finale" # Nome nuovo per resettare
     id: Optional[int] = Field(default=None, primary_key=True)
     nome: str
-    area: AreaTrattamento = Field(default=AreaTrattamento.ALTRO)
     prezzo_base: float = Field(default=0.0)
 
     def __str__(self):
-        return f"[{self.area.value}] {self.nome} (€ {self.prezzo_base})"
+        return f"{self.nome} (€ {self.prezzo_base})"
 
-# --- 5. PREVENTIVI TESTATA (Nuova tabella per evitare conflitti) ---
+# --- 5. PREVENTIVI (TESTATA) ---
 class Preventivo(SQLModel, table=True):
-    __tablename__ = "preventivi_testata_finale"
+    __tablename__ = "preventivi_testata_finale" # Nome nuovo per resettare
     id: Optional[int] = Field(default=None, primary_key=True)
     data_creazione: date = Field(default_factory=date.today)
     
-    # Collegamento al Paziente esistente
+    # Collegamento al paziente esistente
     paziente_id: Optional[int] = Field(default=None, foreign_key="pazienti_visite_v2.id")
     paziente_rel: Optional[Paziente] = Relationship(back_populates="preventivi")
 
-    # Campi per la stampa
-    oggetto: str = Field(default="Piano di Cura", description="Es: Ciclo riabilitativo")
-    note: Optional[str] = Field(default=None, description="Note per la stampa")
-    
+    oggetto: str = Field(default="Piano di cura", description="Es: Riabilitazione Spalla")
+    note: Optional[str] = None
     totale_calcolato: float = Field(default=0.0)
-    accettato: bool = False
 
     # Relazione con le righe
     righe: List["RigaPreventivo"] = Relationship(back_populates="preventivo")
@@ -102,9 +98,9 @@ class Preventivo(SQLModel, table=True):
     def __str__(self):
         return f"Prev. #{self.id} - {self.data_creazione}"
 
-# --- 6. PREVENTIVI RIGHE (Nuova tabella per evitare conflitti) ---
+# --- 6. PREVENTIVI (RIGHE) ---
 class RigaPreventivo(SQLModel, table=True):
-    __tablename__ = "preventivi_righe_finale"
+    __tablename__ = "preventivi_righe_finale" # Nome nuovo per resettare
     id: Optional[int] = Field(default=None, primary_key=True)
     
     preventivo_id: Optional[int] = Field(default=None, foreign_key="preventivi_testata_finale.id")
@@ -116,7 +112,7 @@ class RigaPreventivo(SQLModel, table=True):
     quantita: int = Field(default=1)
     sconto: float = Field(default=0.0)
 
-# --- 7. SCADENZARIO (Tuo originale) ---
+# --- 7. SCADENZARIO ---
 class Scadenza(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     descrizione: str
