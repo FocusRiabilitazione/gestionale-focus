@@ -11,17 +11,17 @@ class Paziente(SQLModel, table=True):
     cognome: str
     area: str  # Menu a tendina
     
-    # Campi Facoltativi (Note è l'unico rimasto)
+    # Campi Facoltativi (Solo Note)
     note: Optional[str] = None
     
-    # Stati (Gestiti dai pulsanti)
+    # Stati
     disdetto: bool = False
     data_disdetta: Optional[date] = None
     
     visita_esterna: bool = False
     data_visita: Optional[date] = None
 
-# --- MAGAZZINO ---
+# --- ALTRE TABELLE ---
 class Inventario(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     materiale: str
@@ -30,7 +30,6 @@ class Inventario(SQLModel, table=True):
     obiettivo: int = 5
     soglia_minima: int = 2
 
-# --- PRESTITI ---
 class Prestito(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     paziente_nome: str 
@@ -39,7 +38,6 @@ class Prestito(SQLModel, table=True):
     data_scadenza: date
     restituito: bool = False
 
-# --- PREVENTIVI ---
 class Preventivo(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     paziente: str
@@ -48,7 +46,6 @@ class Preventivo(SQLModel, table=True):
     data_creazione: date = Field(default_factory=date.today)
     note: Optional[str] = None
 
-# --- SCADENZE ---
 class Scadenza(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     descrizione: str
