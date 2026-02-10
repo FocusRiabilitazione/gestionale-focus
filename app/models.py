@@ -1,22 +1,23 @@
-from typing import Optional, List
+from typing import Optional
 from datetime import date
 from sqlmodel import SQLModel, Field, Relationship
 from enum import Enum
 
-# --- ENUMS (Le categorie) ---
+# --- MENU A TENDINA PAZIENTI ---
 class AreaEnum(str, Enum):
     MANO = "Mano-Polso"
     COLONNA = "Colonna"
     ATM = "ATM"
     MUSCOLO = "Muscolo-Scheletrico"
 
+# --- NUOVO MENU A TENDINA PRESTITI ---
 class AreaPrestito(str, Enum):
     OGGETTI = "Oggetti"
     ELETTROMEDICALI = "Elettromedicali"
 
-# --- PAZIENTI ---
+# --- ANAGRAFICA PAZIENTI ---
 class Paziente(SQLModel, table=True):
-    __tablename__ = "pazienti_visite_v2"
+    __tablename__ = "pazienti_visite_v2" # Manteniamo la tabella pazienti esistente
     
     id: Optional[int] = Field(default=None, primary_key=True)
     nome: str
@@ -28,9 +29,7 @@ class Paziente(SQLModel, table=True):
     visita_medica: bool = Field(default=False)
     data_visita: Optional[date] = None
 
-    # Relazione per vedere i prestiti del paziente
-    prestiti: List["Prestito"] = Relationship(back_populates="paziente")
-
+    # Serve per far vedere il nome nel menu a tendina dei prestiti
     def __str__(self):
         return f"{self.cognome} {self.nome}"
 
@@ -45,24 +44,35 @@ class Inventario(SQLModel, table=True):
     soglia_minima: int = Field(default=2)
     obiettivo: int = Field(default=5)
 
-# --- PRESTITI ---
+# --- PRESTITI (NUOVO E POTENTE) ---
 class Prestito(SQLModel, table=True):
     __tablename__ = "prestiti_smart_v1"
     
     id: Optional[int] = Field(default=None, primary_key=True)
+    
+    # 1. Cosa prestiamo?
     oggetto: str
     area: AreaPrestito = Field(default=AreaPrestito.OGGETTI)
     
-    # Collegamento al Paziente
+    # 2. A chi? (Collegamento intelligente al Paziente)
     paziente_id: Optional[int] = Field(default=None, foreign_key="pazienti_visite_v2.id")
-    paziente: Optional[Paziente] = Relationship(back_populates="prestiti")
+    paziente: Optional[Paziente] = Relationship()
 
-    data_inizio: date = Field(default_factory=date.today)
-    durata_giorni: int = Field(default=7)
-    data_scadenza: Optional[date] = None 
+    # 3. Tempo
+    data_inizio: date = Field(default_factory=date.today) # Parte da oggi in automatico
+    durata_giorni: int = Field(default=7) # Default 1 settimana
+    data_scadenza: Optional[date] = None # Calcolata dal sistema
+    
+    # 4. Stato
     restituito: bool = False
 
-# --- SCADENZARIO ---
+# --- ALTRE TABELLE ---
+class Preventivo(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    paziente: str
+    totale: float
+    data_creazione: date = Field(default_factory=date.today)
+
 class Scadenza(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     descrizione: str
