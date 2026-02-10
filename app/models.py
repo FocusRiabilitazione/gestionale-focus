@@ -1,23 +1,34 @@
 from typing import Optional
 from datetime import date
-from sqlmodel import SQLModel, Field
+from sqlmodel import SQLModel, Field, Relationship
 
 # --- ANAGRAFICA PAZIENTI ---
 class Paziente(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
+    
+    # Campi Obbligatori (senza Optional)
     nome: str
     cognome: str
-    area: str  # Es: "Mano-Polso", "Colonna"
+    area: str  # Sarà un menu a tendina
+    
+    # Campi Facoltativi
     telefono: Optional[str] = None
+    email: Optional[str] = None
+    codice_fiscale: Optional[str] = None
+    note: Optional[str] = None
+    
+    # Stati (Gestiti dai pulsanti)
     disdetto: bool = False
     data_disdetta: Optional[date] = None
-    note: Optional[str] = None
+    
+    visita_esterna: bool = False
+    data_visita: Optional[date] = None
 
 # --- MAGAZZINO ---
 class Inventario(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     materiale: str
-    area_stanza: str # Es: "Segreteria", "Mano", "Stanza 1"
+    area_stanza: str 
     quantita: int = 0
     obiettivo: int = 5
     soglia_minima: int = 2
@@ -25,7 +36,7 @@ class Inventario(SQLModel, table=True):
 # --- PRESTITI ---
 class Prestito(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    paziente_nome: str # Salviamo nome e cognome per semplicità
+    paziente_nome: str 
     oggetto: str
     data_prestito: date = Field(default_factory=date.today)
     data_scadenza: date
@@ -35,12 +46,12 @@ class Prestito(SQLModel, table=True):
 class Preventivo(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     paziente: str
-    dettagli: str # Es: "Tecar x5, Laser x3"
+    dettagli: str 
     totale: float
     data_creazione: date = Field(default_factory=date.today)
     note: Optional[str] = None
 
-# --- SCADENZE PAGAMENTI ---
+# --- SCADENZE ---
 class Scadenza(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     descrizione: str
