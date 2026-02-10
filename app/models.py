@@ -3,7 +3,7 @@ from datetime import date
 from sqlmodel import SQLModel, Field, Relationship
 from enum import Enum
 
-# --- ENUMS ---
+# --- ENUMS (Le categorie) ---
 class AreaEnum(str, Enum):
     MANO = "Mano-Polso"
     COLONNA = "Colonna"
@@ -23,6 +23,7 @@ class AreaTrattamento(str, Enum):
 # --- PAZIENTI ---
 class Paziente(SQLModel, table=True):
     __tablename__ = "pazienti_visite_v2"
+    
     id: Optional[int] = Field(default=None, primary_key=True)
     nome: str
     cognome: str
@@ -33,19 +34,47 @@ class Paziente(SQLModel, table=True):
     visita_medica: bool = Field(default=False)
     data_visita: Optional[date] = None
 
-    # Relazione inversa per vedere i preventivi del paziente
+    # Relazione per vedere i preventivi del paziente
     preventivi: List["Preventivo"] = Relationship(back_populates="paziente_rel")
 
     def __str__(self):
         return f"{self.cognome} {self.nome}"
 
-# --- LISTINO PREZZI (Trattamenti) ---
+# --- MAGAZZINO ---
+class Inventario(SQLModel, table=True):
+    __tablename__ = "inventario_smart_v2"
+    
+    id: Optional[int] = Field(default=None, primary_key=True)
+    materiale: str
+    area_stanza: str 
+    quantita: int = Field(default=0)
+    soglia_minima: int = Field(default=2)
+    obiettivo: int = Field(default=5)
+
+# --- PRESTITI ---
+class Prestito(SQLModel, table=True):
+    __tablename__ = "prestiti_smart_v1"
+    
+    id: Optional[int] = Field(default=None, primary_key=True)
+    oggetto: str
+    area: AreaPrestito = Field(default=AreaPrestito.OGGETTI)
+    
+    paziente_id: Optional[int] = Field(default=None, foreign_key="pazienti_visite_v2.id")
+    paziente: Optional[Paziente] = Relationship()
+
+    data_inizio: date = Field(default_factory=date.today)
+    durata_giorni: int = Field(default=7)
+    data_scadenza: Optional[date] = None 
+    restituito: bool = False
+
+# --- LISTINO PREZZI (TRATTAMENTI) ---
 class Trattamento(SQLModel, table=True):
     __tablename__ = "listino_prezzi"
+    
     id: Optional[int] = Field(default=None, primary_key=True)
     nome: str
     area: AreaTrattamento = Field(default=AreaTrattamento.TERAPIA_MANUALE)
-    prezzo_base: float = 0.0
+    prezzo_base: float = Field(default=0.0)
 
     def __str__(self):
         return f"{self.nome} (€ {self.prezzo_base})"
@@ -53,16 +82,17 @@ class Trattamento(SQLModel, table=True):
 # --- PREVENTIVI (TESTATA) ---
 class Preventivo(SQLModel, table=True):
     __tablename__ = "preventivi_smart"
-    id: Optional[int] = Field(default=None, primary_key=True)
     
+    id: Optional[int] = Field(default=None, primary_key=True)
     data_creazione: date = Field(default_factory=date.today)
     
     # Collegamento al Paziente
     paziente_id: Optional[int] = Field(default=None, foreign_key="pazienti_visite_v2.id")
     paziente_rel: Optional[Paziente] = Relationship(back_populates="preventivi")
 
-    descrizione_percorso: Optional[str] = Field(default=None, description="Es: Ciclo riabilitativo post-operatorio...")
-    note_pagamento: Optional[str] = Field(default=None, description="Es: Acconto 50%, saldo a fine cura")
+    # Campi descrittivi richiesti
+    descrizione_percorso: Optional[str] = Field(default=None, description="Descrizione del percorso riabilitativo")
+    note_pagamento: Optional[str] = Field(default=None, description="Rateizzazione e modalità di pagamento")
     
     totale_calcolato: float = Field(default=0.0)
     accettato: bool = False
@@ -76,6 +106,7 @@ class Preventivo(SQLModel, table=True):
 # --- PREVENTIVI (RIGHE) ---
 class RigaPreventivo(SQLModel, table=True):
     __tablename__ = "preventivi_righe"
+    
     id: Optional[int] = Field(default=None, primary_key=True)
     
     preventivo_id: Optional[int] = Field(default=None, foreign_key="preventivi_smart.id")
@@ -86,32 +117,9 @@ class RigaPreventivo(SQLModel, table=True):
     
     quantita: int = Field(default=1)
     sconto_unitario: float = Field(default=0.0)
-    
-    # Questo serve per fissare il prezzo al momento del preventivo (se il listino cambia)
-    prezzo_applicato: float = 0.0 
+    prezzo_applicato: float = Field(default=0.0) # Prezzo congelato al momento del preventivo
 
-# --- MAGAZZINO & PRESTITI (INVARIATI) ---
-class Inventario(SQLModel, table=True):
-    __tablename__ = "inventario_smart_v2"
-    id: Optional[int] = Field(default=None, primary_key=True)
-    materiale: str
-    area_stanza: str 
-    quantita: int = 0
-    soglia_minima: int = 2
-    obiettivo: int = 5
-
-class Prestito(SQLModel, table=True):
-    __tablename__ = "prestiti_smart_v1"
-    id: Optional[int] = Field(default=None, primary_key=True)
-    oggetto: str
-    area: AreaPrestito = Field(default=AreaPrestito.OGGETTI)
-    paziente_id: Optional[int] = Field(default=None, foreign_key="pazienti_visite_v2.id")
-    paziente: Optional[Paziente] = Relationship()
-    data_inizio: date = Field(default_factory=date.today)
-    durata_giorni: int = Field(default=7)
-    data_scadenza: Optional[date] = None 
-    restituito: bool = False
-
+# --- SCADENZARIO ---
 class Scadenza(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     descrizione: str
