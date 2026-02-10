@@ -5,10 +5,10 @@ from datetime import date
 from starlette.responses import RedirectResponse
 from pydantic import BaseModel
 from typing import List
-from markupsafe import Markup
+from markupsafe import Markup # <--- Serve per disegnare i bottoni
 
 from .database import engine, init_db
-from .models import Paziente, Inventario, Prestito, Preventivo, Scadenza, AreaMagazzino
+from .models import Paziente, Inventario, Prestito, Preventivo, Scadenza
 
 app = FastAPI(title="Gestionale Focus Rehab")
 
@@ -18,7 +18,7 @@ class PazienteImport(BaseModel):
     cognome: str
     area: str 
 
-# --- ENDPOINT RAPIDI (+ e -) ---
+# --- ENDPOINT RAPIDI PER IL MAGAZZINO (I "Comandi Segreti") ---
 @app.get("/magazzino/piu/{pk}")
 def aumenta_quantita(request: Request, pk: int):
     with Session(engine) as session:
@@ -27,74 +27,18 @@ def aumenta_quantita(request: Request, pk: int):
             item.quantita += 1
             session.add(item)
             session.commit()
-    # Ricarica la pagina da cui sei venuto
-    return RedirectResponse(request.headers.get("referer"), status_code=303)
+    # Torna subito alla lista
+    return RedirectResponse(request.url_for("admin:list", identity="inventario"), status_code=303)
 
 @app.get("/magazzino/meno/{pk}")
 def diminuisci_quantita(request: Request, pk: int):
     with Session(engine) as session:
         item = session.get(Inventario, pk)
-        if item and item.quantita > 0:
+        if item and item.quantita > 0: # Non scendiamo sotto zero
             item.quantita -= 1
             session.add(item)
             session.commit()
-    return RedirectResponse(request.headers.get("referer"), status_code=303)
-
-# --- FORMATTAZIONE SICURA (Solo Quantità) ---
-def formatta_quantita(model, attribute):
-    # Usiamo valori sicuri per evitare crash
-    q = model.quantita if model.quantita is not None else 0
-    soglia = model.soglia_minima if model.soglia_minima is not None else 0
-    obiett = model.obiettivo if model.obiettivo is not None else 0
-    
-    stato = ""
-    if q <= soglia:
-        stato = f"🔴 {q} (ORDINA!)"
-    elif q >= obiett:
-        stato = f"🌟 {q} (Pieno)"
-    else:
-        stato = f"✅ {q} (Ok)"
-        
-    style = "text-decoration:none; border:1px solid #ccc; padding:2px 7px; border-radius:4px; margin:0 3px; background:#fff; font-weight:bold; color:#333;"
-    btn_meno = f'<a href="/magazzino/meno/{model.id}" style="{style}">-</a>'
-    btn_piu = f'<a href="/magazzino/piu/{model.id}" style="{style}">+</a>'
-    
-    return Markup(f"{btn_meno} {stato} {btn_piu}")
-
-
-# --- CONFIGURAZIONE MAGAZZINO ---
-class InventarioAdmin(ModelView, model=Inventario):
-    name = "Magazzino"
-    name_plural = "Magazzino"
-    icon = "fa-solid fa-boxes-stacked"
-    
-    # Applichiamo solo la formattazione quantità che sappiamo funzionare
-    column_formatters = {
-        Inventario.quantita: formatta_quantita
-    }
-
-    column_list = [
-        Inventario.area_stanza,  # Mettiamo l'area come PRIMA colonna
-        Inventario.materiale, 
-        Inventario.quantita, 
-        Inventario.soglia_minima, 
-        Inventario.obiettivo
-    ]
-    
-    # ⚠️ QUESTO È IL TRUCCO: Ordina automaticamente per area!
-    # Così vedrai prima tutti gli oggetti 'Mano', poi tutti i 'Medicinali', ecc.
-    column_default_sort = "area_stanza" 
-    
-    column_searchable_list = [Inventario.materiale]
-    column_filters = [Inventario.area_stanza]
-
-    form_columns = [
-        Inventario.materiale,
-        Inventario.area_stanza,
-        Inventario.quantita,
-        Inventario.soglia_minima,
-        Inventario.obiettivo
-    ]
+    return RedirectResponse(request.url_for("admin:list", identity="inventario"), status_code=303)
 
 # --- PAZIENTI ---
 class PazienteAdmin(ModelView, model=Paziente):
@@ -106,18 +50,21 @@ class PazienteAdmin(ModelView, model=Paziente):
         Paziente.disdetto: lambda m, a: "✅" if m.disdetto else "",
         Paziente.visita_medica: lambda m, a: "🩺" if m.visita_medica else ""
     }
+
     column_list = [
         Paziente.cognome, Paziente.nome, Paziente.area,
         Paziente.visita_medica, Paziente.data_visita,
         Paziente.disdetto, Paziente.data_disdetta
     ]
+    
     column_searchable_list = [Paziente.cognome, Paziente.nome]
+    
     form_columns = [
         Paziente.nome, Paziente.cognome, Paziente.area, Paziente.note,
         Paziente.visita_medica, Paziente.data_visita, 
         Paziente.disdetto, Paziente.data_disdetta
     ]
-    
+
     @action(name="segna_disdetto", label="❌ Segna come Disdetto", confirmation_message="Confermi?")
     def action_disdetto(self, request: Request):
         pks = request.query_params.get("pks", "").split(",")
@@ -132,7 +79,54 @@ class PazienteAdmin(ModelView, model=Paziente):
             session.commit()
         return RedirectResponse(request.url_for("admin:list", identity="paziente"), status_code=303)
 
-# --- ALTRE SEZIONI ---
+# --- MAGAZZINO PRO (Con Bottoni Rapidi) ---
+class InventarioAdmin(ModelView, model=Inventario):
+    name = "Articolo"
+    name_plural = "Magazzino"
+    icon = "fa-solid fa-box"
+
+    # FUNZIONE CHE DISEGNA SEMAFORO + PULSANTI
+    def formatta_con_bottoni(model, attribute):
+        # 1. Logica Semaforo
+        stato = ""
+        if model.quantita <= model.soglia_minima:
+            stato = f"🔴 {model.quantita} (ORDINA!)"
+        elif model.quantita >= model.obiettivo:
+            stato = f"🌟 {model.quantita} (Pieno)"
+        else:
+            stato = f"✅ {model.quantita} (Ok)"
+            
+        # 2. Creazione Bottoni (Link HTML)
+        # Usiamo uno stile semplice per i bottoni
+        style = "text-decoration:none; border:1px solid #ccc; padding:2px 6px; border-radius:4px; margin:0 2px; background:#f9f9f9;"
+        btn_meno = f'<a href="/magazzino/meno/{model.id}" style="{style}">➖</a>'
+        btn_piu = f'<a href="/magazzino/piu/{model.id}" style="{style}">➕</a>'
+        
+        # 3. Restituisce tutto insieme come HTML sicuro
+        return Markup(f"{btn_meno} &nbsp; <b>{stato}</b> &nbsp; {btn_piu}")
+
+    # Applichiamo la formattazione
+    column_formatters = {
+        Inventario.quantita: formatta_con_bottoni
+    }
+
+    column_list = [
+        Inventario.materiale, 
+        Inventario.area_stanza, 
+        Inventario.quantita, 
+        Inventario.soglia_minima, 
+        Inventario.obiettivo
+    ]
+    
+    form_columns = [
+        Inventario.materiale,
+        Inventario.area_stanza,
+        Inventario.quantita,
+        Inventario.soglia_minima,
+        Inventario.obiettivo
+    ]
+
+# --- ALTRE VISTE ---
 class PrestitoAdmin(ModelView, model=Prestito):
     name = "Prestito"
     name_plural = "Prestiti"
@@ -179,4 +173,4 @@ def import_pazienti(lista_pazienti: List[PazienteImport]):
 
 @app.get("/")
 def home():
-    return {"msg": "Gestionale Focus Rehab - Stabile"}
+    return {"msg": "Gestionale Focus Rehab - Magazzino Interattivo"}
