@@ -11,18 +11,19 @@ from .models import Paziente, Inventario, Prestito, Preventivo, Scadenza
 
 app = FastAPI(title="Gestionale Focus Rehab")
 
-# --- STRUTTURA IMPORT ---
+# --- IMPORTAZIONE ---
 class PazienteImport(BaseModel):
     nome: str
     cognome: str
     area: str 
 
-# --- PAZIENTI (Versione Stabile) ---
+# --- PAZIENTI ---
 class PazienteAdmin(ModelView, model=Paziente):
     name = "Paziente"
     name_plural = "Pazienti"
     icon = "fa-solid fa-user-injured"
     
+    # Formattazione visiva
     column_formatters = {
         Paziente.disdetto: lambda m, a: "✅" if m.disdetto else "",
         Paziente.visita_medica: lambda m, a: "🩺" if m.visita_medica else ""
@@ -35,7 +36,6 @@ class PazienteAdmin(ModelView, model=Paziente):
     ]
     
     column_searchable_list = [Paziente.cognome, Paziente.nome]
-    column_filters = [Paziente.area, Paziente.disdetto, Paziente.visita_medica]
     
     form_columns = [
         Paziente.nome, Paziente.cognome, Paziente.area, Paziente.note,
@@ -57,21 +57,18 @@ class PazienteAdmin(ModelView, model=Paziente):
             session.commit()
         return RedirectResponse(request.url_for("admin:list", identity="paziente"), status_code=303)
 
-# --- MAGAZZINO (Nuovo e Intelligente) ---
+# --- MAGAZZINO ---
 class InventarioAdmin(ModelView, model=Inventario):
     name = "Articolo"
     name_plural = "Magazzino"
-    icon = "fa-solid fa-boxes-stacked" # Icona più bella
-    
-    # QUI C'È IL SEMAFORO INTELLIGENTE 🚦
+    icon = "fa-solid fa-box"
+
+    # SEMAFORO INTELLIGENTE 🚦
+    # Ho reso la logica più compatta per evitare errori
     column_formatters = {
-        # Se Quantità < Soglia -> Mostra triangolo giallo e numero
-        # Se Quantità >= Obiettivo -> Mostra stella e numero
-        # Altrimenti -> Spunta verde
         Inventario.quantita: lambda m, a: (
-            f"⚠️ {m.quantita} (DA ORDINARE!)" if m.quantita < m.soglia_minima 
-            else (f"🌟 {m.quantita} (Pieno)" if m.quantita >= m.obiettivo 
-            else f"✅ {m.quantita}")
+            f"⚠️ {m.quantita} (ORDINA!)" if m.quantita < m.soglia_minima 
+            else (f"🌟 {m.quantita} (OK)" if m.quantita >= m.obiettivo else str(m.quantita))
         )
     }
 
@@ -79,17 +76,13 @@ class InventarioAdmin(ModelView, model=Inventario):
         Inventario.materiale, 
         Inventario.area_stanza, 
         Inventario.quantita, 
-        Inventario.soglia_minima,
+        Inventario.soglia_minima, 
         Inventario.obiettivo
     ]
     
-    # Filtri potenti: cerca per materiale o filtra per stanza
-    column_searchable_list = [Inventario.materiale]
-    column_filters = [Inventario.area_stanza]
-
     form_columns = [
         Inventario.materiale,
-        Inventario.area_stanza, # Menu a tendina automatico
+        Inventario.area_stanza,
         Inventario.quantita,
         Inventario.soglia_minima,
         Inventario.obiettivo
@@ -126,7 +119,6 @@ admin.add_view(ScadenzaAdmin)
 def on_startup():
     init_db()
 
-# --- IMPORTAZIONE ---
 @app.post("/import-rapido")
 def import_pazienti(lista_pazienti: List[PazienteImport]):
     try:
@@ -143,4 +135,4 @@ def import_pazienti(lista_pazienti: List[PazienteImport]):
 
 @app.get("/")
 def home():
-    return {"msg": "Gestionale Focus Rehab - Magazzino Smart"}
+    return {"msg": "Gestionale Focus Rehab - Ripristinato"}
