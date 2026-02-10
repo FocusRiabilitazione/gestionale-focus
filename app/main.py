@@ -8,12 +8,36 @@ app = FastAPI(title="Gestionale Focus Rehab")
 # --- CONFIGURAZIONE PANNELLO AMMINISTRAZIONE ---
 
 class PazienteAdmin(ModelView, model=Paziente):
-    # Qui impostiamo i nomi italiani corretti
     name = "Paziente"
     name_plural = "Pazienti"
-    column_list = [Paziente.cognome, Paziente.nome, Paziente.area, Paziente.disdetto]
-    column_searchable_list = [Paziente.cognome, Paziente.nome]
-    icon = "fa-solid fa-user"
+    icon = "fa-solid fa-user-injured" # Icona più adatta
+    
+    # Cosa vedere nella lista principale (Colonne)
+    column_list = [
+        Paziente.cognome, 
+        Paziente.nome, 
+        Paziente.telefono, 
+        Paziente.area, 
+        Paziente.disdetto
+    ]
+    
+    # Barra di Ricerca (Cerca per nome, cognome o CF)
+    column_searchable_list = [Paziente.cognome, Paziente.nome, Paziente.codice_fiscale]
+    
+    # Filtri laterali (Es: "Fammi vedere solo quelli Disdetti")
+    column_filters = [Paziente.area, Paziente.disdetto, Paziente.visita_esterna]
+    
+    # Ordine di default (Alfabetico per Cognome)
+    column_default_sort = ("cognome", False) 
+
+    # Organizzazione del Form di inserimento (Raggruppiamo i campi)
+    form_columns = [
+        Paziente.nome, Paziente.cognome, Paziente.codice_fiscale,
+        Paziente.telefono, Paziente.email, Paziente.area,
+        Paziente.note,
+        Paziente.disdetto, Paziente.data_disdetta,
+        Paziente.visita_esterna, Paziente.data_visita
+    ]
 
 class InventarioAdmin(ModelView, model=Inventario):
     name = "Articolo"
@@ -56,3 +80,4 @@ def on_startup():
 @app.get("/")
 def home():
     return {"message": "Sistema Focus Rehab Attivo. Vai su /admin per accedere."}
+
