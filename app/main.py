@@ -3,8 +3,6 @@ from sqladmin import Admin, ModelView, action
 from sqlmodel import SQLModel 
 from datetime import date
 
-# Nota: NON importiamo più wtforms, così evitiamo l'errore!
-
 from .database import engine, init_db
 from .models import Paziente, Inventario, Prestito, Preventivo, Scadenza
 
@@ -16,7 +14,6 @@ class PazienteAdmin(ModelView, model=Paziente):
     name_plural = "Pazienti"
     icon = "fa-solid fa-user-injured"
     
-    # Colonne visibili nella lista
     column_list = [
         Paziente.cognome, 
         Paziente.nome, 
@@ -25,13 +22,24 @@ class PazienteAdmin(ModelView, model=Paziente):
         Paziente.data_disdetta
     ]
     
-    # Barra di Ricerca e Filtri
     column_searchable_list = [Paziente.cognome, Paziente.nome]
     column_filters = [Paziente.area, Paziente.disdetto]
-    column_default_sort = ("cognome", False)
 
-    # Form di inserimento (Semplice e pulito)
-    # Il campo 'area' diventerà automaticamente un menu a tendina grazie a models.py
+    # --- MENU A TENDINA (METODO SICURO) ---
+    # Questo codice trasforma la casella di testo in un menu a tendina
+    # senza dover toccare il database.
+    form_args = dict(
+        area=dict(
+            choices=[
+                ("Mano-Polso", "Mano-Polso"),
+                ("Colonna", "Colonna"),
+                ("ATM", "ATM"),
+                ("Muscolo-Scheletrico", "Muscolo-Scheletrico")
+            ],
+            label="Area di Competenza"
+        )
+    )
+
     form_columns = [
         Paziente.nome, 
         Paziente.cognome, 
@@ -41,15 +49,14 @@ class PazienteAdmin(ModelView, model=Paziente):
         Paziente.data_disdetta
     ]
 
-    # --- AZIONE RAPIDA DISDETTA (L'unica aggiunta) ---
+    # --- AZIONE DISDETTA ---
     @action(
         name="segna_disdetto",
         label="❌ Segna come Disdetto",
-        confirmation_message="Confermi la disdetta? Verrà inserita la data di oggi."
+        confirmation_message="Confermi la disdetta?"
     )
     async def action_disdetto(self, request: Request):
         pks = request.query_params.get("pks", "").split(",")
-        # Controllo che ci siano ID validi
         if pks and pks != ['']:
             with self.session_maker() as session:
                 for pk in pks:
