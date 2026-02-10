@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request
 from sqladmin import Admin, ModelView, action
 from sqlmodel import SQLModel 
 from datetime import date
-from starlette.responses import RedirectResponse # <--- QUESTO RISOLVE L'ERRORE DEL TASTO
+from starlette.responses import RedirectResponse
 
 from .database import engine, init_db
 from .models import Paziente, Inventario, Prestito, Preventivo, Scadenza
@@ -15,6 +15,12 @@ class PazienteAdmin(ModelView, model=Paziente):
     name_plural = "Pazienti"
     icon = "fa-solid fa-user-injured"
     
+    # 1. ESTETICA: VIA LA "X" ROSSA
+    # Questo formatter dice: Se è True metti "✅", se è False non mettere nulla (stringa vuota).
+    column_formatters = {
+        Paziente.disdetto: lambda m, a: "✅" if m.disdetto else ""
+    }
+
     column_list = [
         Paziente.cognome, 
         Paziente.nome, 
@@ -34,25 +40,26 @@ class PazienteAdmin(ModelView, model=Paziente):
         Paziente.data_disdetta
     ]
 
-    # --- 1. INTELLIGENZA DI SALVATAGGIO (Risolve il problema della data che resta) ---
-    async def on_model_change(self, data, model, is_created, request):
-        # Se l'utente ha messo la spunta Disdetto ma non la data -> Metti oggi
-        if model.disdetto is True and model.data_disdetta is None:
+    # 2. LOGICA AUTOMATICA (SALVATAGGIO)
+    # Ho tolto 'async' per renderlo più stabile con il database.
+    def on_model_change(self, data, model, is_created, request):
+        # A. Se metti la spunta ma scordi la data -> Mette OGGI
+        if model.disdetto is True and not model.data_disdetta:
             model.data_disdetta = date.today()
             
-        # Se l'utente ha TOLTO la spunta Disdetto -> Cancella la data
+        # B. Se TOGLI la spunta (il paziente torna attivo) -> Cancella la data!
         if model.disdetto is False:
             model.data_disdetta = None
             
-        # Ora il sistema salverà il modello corretto
+        # Il sistema ora salverà queste modifiche automaticamente
 
-    # --- 2. AZIONE TASTO DISDETTA (Risolve l'errore rosso) ---
+    # 3. AZIONE TASTO DISDETTA (MASSIVA)
     @action(
         name="segna_disdetto",
         label="❌ Segna come Disdetto",
         confirmation_message="Confermi la disdetta? Verrà inserita la data di oggi."
     )
-    async def action_disdetto(self, request: Request):
+    def action_disdetto(self, request: Request):
         pks = request.query_params.get("pks", "").split(",")
         
         with self.session_maker() as session:
@@ -65,8 +72,7 @@ class PazienteAdmin(ModelView, model=Paziente):
                         session.add(model)
             session.commit()
 
-        # TRUCCO FINALE: Invece di restituire testo, ricarichiamo la pagina.
-        # Questo forza il browser a chiudere il popup e mostrare i dati nuovi.
+        # Ricarica la pagina per mostrare le modifiche
         return RedirectResponse(request.url_for("admin:list", identity="paziente"), status_code=303)
 
 # --- ALTRE VISTE ---
@@ -108,4 +114,4 @@ def on_startup():
 
 @app.get("/")
 def home():
-    return {"msg": "Gestionale Focus Rehab - Versione Stabile"}
+    return {"msg": "Gestionale Focus Rehab - Versione Perfetta"}
