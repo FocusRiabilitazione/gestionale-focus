@@ -1,5 +1,5 @@
-from fastapi import FastAPI, Request
-from sqladmin import Admin, ModelView, action
+from fastapi import FastAPI
+from sqladmin import Admin, ModelView
 from sqlmodel import SQLModel 
 from datetime import date
 
@@ -8,14 +8,13 @@ from .models import Paziente, Inventario, Prestito, Preventivo, Scadenza
 
 app = FastAPI(title="Gestionale Focus Rehab")
 
-# --- 1. CONFIGURAZIONE PAZIENTI (COMPLETA) ---
+# --- 1. CONFIGURAZIONE PAZIENTI ---
 class PazienteAdmin(ModelView, model=Paziente):
-    # Nomi e Icone
+    # ESTETICA: Qui correggiamo i nomi e le icone
     name = "Paziente"
-    name_plural = "Pazienti" # <--- Ecco che togliamo la 's'
+    name_plural = "Pazienti"  # Addio alla "s"!
     icon = "fa-solid fa-user-injured"
     
-    # Colonne visibili
     column_list = [
         Paziente.cognome, 
         Paziente.nome, 
@@ -24,24 +23,10 @@ class PazienteAdmin(ModelView, model=Paziente):
         Paziente.data_disdetta
     ]
     
-    # Ricerca e Filtri
     column_searchable_list = [Paziente.cognome, Paziente.nome]
     column_filters = [Paziente.area, Paziente.disdetto]
 
-    # MENU A TENDINA (Metodo Sicuro che non rompe il DB)
-    form_args = dict(
-        area=dict(
-            choices=[
-                ("Mano-Polso", "Mano-Polso"),
-                ("Colonna", "Colonna"),
-                ("ATM", "ATM"),
-                ("Muscolo-Scheletrico", "Muscolo-Scheletrico")
-            ],
-            label="Area di Competenza"
-        )
-    )
-
-    # Ordine campi nel form
+    # Menu a tendina e Action sono disattivati per capire se erano loro il problema
     form_columns = [
         Paziente.nome, 
         Paziente.cognome, 
@@ -51,26 +36,7 @@ class PazienteAdmin(ModelView, model=Paziente):
         Paziente.data_disdetta
     ]
 
-    # AZIONE RAPIDA DISDETTA
-    @action(
-        name="segna_disdetto",
-        label="❌ Segna come Disdetto",
-        confirmation_message="Confermi la disdetta? Verrà inserita la data di oggi."
-    )
-    async def action_disdetto(self, request: Request):
-        pks = request.query_params.get("pks", "").split(",")
-        if pks and pks != ['']:
-            with self.session_maker() as session:
-                for pk in pks:
-                    model = session.get(Paziente, int(pk))
-                    if model:
-                        model.disdetto = True
-                        model.data_disdetta = date.today()
-                        session.add(model)
-                session.commit()
-        return
-
-# --- 2. ALTRE VISTE (Con Nomi Italiani e Icone) ---
+# --- 2. ALTRE VISTE (Estetica curata) ---
 
 class InventarioAdmin(ModelView, model=Inventario):
     name = "Articolo"
@@ -110,4 +76,4 @@ def on_startup():
 
 @app.get("/")
 def home():
-    return {"msg": "Gestionale Focus Rehab Attivo"}
+    return {"msg": "Gestionale Focus Rehab - Estetica Attiva"}
