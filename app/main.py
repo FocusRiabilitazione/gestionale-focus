@@ -27,7 +27,7 @@ def aumenta_quantita(request: Request, pk: int):
             item.quantita += 1
             session.add(item)
             session.commit()
-    # Torna alla pagina precedente
+    # Torna alla pagina precedente mantenendo la posizione
     return RedirectResponse(request.headers.get("referer"), status_code=303)
 
 @app.get("/magazzino/meno/{pk}")
@@ -40,23 +40,52 @@ def diminuisci_quantita(request: Request, pk: int):
             session.commit()
     return RedirectResponse(request.headers.get("referer"), status_code=303)
 
-# --- FORMATTAZIONE SOLO PER QUANTITÀ (Questo funziona sicuro) ---
-def formatta_con_bottoni(model, attribute):
-    stato = ""
-    # Usiamo valori sicuri (0 se è vuoto)
+# --- FORMATTAZIONE VISIVA SICURA (Emoji System) ---
+
+def formatta_area_icona(model, attribute):
+    # Trasformiamo tutto in stringa per sicurezza assoluta (anti-crash)
+    valore = str(model.area_stanza).upper()
+    
+    # Assegnazione icone in base al testo contenuto
+    icona = "📦" # Default
+    nome_pulito = "Generico"
+
+    if "MANO" in valore:
+        icona = "🖐️"
+        nome_pulito = "MANO"
+    elif "MEDICINALI" in valore:
+        icona = "💊"
+        nome_pulito = "MEDICINALI"
+    elif "PULIZIE" in valore:
+        icona = "🧹"
+        nome_pulito = "PULIZIE"
+    elif "SEGRETERIA" in valore:
+        icona = "📎"
+        nome_pulito = "SEGRETERIA"
+    elif "STANZE" in valore:
+        icona = "🚪"
+        nome_pulito = "STANZE"
+
+    # Restituisce testo semplice + icona. Impossibile che si rompa.
+    return f"{icona} {nome_pulito}"
+
+def formatta_quantita_bottoni(model, attribute):
     q = model.quantita if model.quantita is not None else 0
     soglia = model.soglia_minima if model.soglia_minima is not None else 0
     obiett = model.obiettivo if model.obiettivo is not None else 0
 
-    # Logica icone
+    # Semaforo Emoji
+    stato = ""
     if q <= soglia:
-        stato = f"🔴 {q} (ORDINA!)"
+        stato = f"🔴 <b>{q}</b> (Ordina!)"
     elif q >= obiett:
-        stato = f"🌟 {q} (Pieno)"
+        stato = f"🌟 <b>{q}</b> (Pieno)"
     else:
-        stato = f"✅ {q} (Ok)"
+        stato = f"✅ <b>{q}</b> (Ok)"
         
-    style = "text-decoration:none; border:1px solid #ccc; padding:2px 7px; border-radius:4px; margin:0 3px; background:#fff; font-weight:bold; color:#333;"
+    # Stile minimale per i bottoni
+    style = "text-decoration:none; display:inline-block; border:1px solid #ccc; width:25px; text-align:center; border-radius:4px; margin:0 5px; background:white; color:black;"
+    
     btn_meno = f'<a href="/magazzino/meno/{model.id}" style="{style}">-</a>'
     btn_piu = f'<a href="/magazzino/piu/{model.id}" style="{style}">+</a>'
     
@@ -100,18 +129,28 @@ class PazienteAdmin(ModelView, model=Paziente):
         return RedirectResponse(request.url_for("admin:list", identity="paziente"), status_code=303)
 
 
-# --- CONFIGURAZIONE MAGAZZINO (SEMJPLIFICATA AL MASSIMO) ---
+# --- CONFIGURAZIONE MAGAZZINO ORDINATA ---
 class InventarioAdmin(ModelView, model=Inventario):
     name = "Magazzino"
     name_plural = "Magazzino"
     icon = "fa-solid fa-boxes-stacked"
 
-    # 1. NESSUN FORMATTER PER L'AREA (Evita il crash)
-    column_formatters = {
-        Inventario.quantita: formatta_con_bottoni
+    # Rinominiamo le colonne per pulizia
+    column_labels = {
+        Inventario.area_stanza: "Reparto",
+        Inventario.materiale: "Articolo",
+        Inventario.quantita: "Giacenza Rapida",
+        Inventario.soglia_minima: "Soglia",
+        Inventario.obiettivo: "Target"
     }
 
-    # 2. Area come PRIMA colonna
+    # Applichiamo le formattazioni sicure
+    column_formatters = {
+        Inventario.area_stanza: formatta_area_icona,
+        Inventario.quantita: formatta_quantita_bottoni
+    }
+
+    # Ordine visivo: PRIMA il Reparto, POI l'Articolo
     column_list = [
         Inventario.area_stanza, 
         Inventario.materiale, 
@@ -120,12 +159,12 @@ class InventarioAdmin(ModelView, model=Inventario):
         Inventario.obiettivo
     ]
     
-    # 3. ORDINAMENTO AUTOMATICO
-    # Questo farà il lavoro sporco di raggruppare visivamente
+    # ⚠️ FONDAMENTALE: Ordina per Reparto.
+    # Questo raggruppa visivamente le righe (tutte le mani insieme, tutte le stanze insieme).
     column_default_sort = "area_stanza" 
 
     column_searchable_list = [Inventario.materiale]
-    column_filters = [Inventario.area_stanza] # Filtro laterale
+    column_filters = [Inventario.area_stanza]
     
     form_columns = [
         Inventario.materiale,
@@ -134,7 +173,6 @@ class InventarioAdmin(ModelView, model=Inventario):
         Inventario.soglia_minima,
         Inventario.obiettivo
     ]
-
 
 # --- ALTRE VISTE ---
 class PrestitoAdmin(ModelView, model=Prestito):
@@ -183,4 +221,4 @@ def import_pazienti(lista_pazienti: List[PazienteImport]):
 
 @app.get("/")
 def home():
-    return {"msg": "Gestionale Focus Rehab - Ripristino Totale"}
+    return {"msg": "Gestionale Focus Rehab - Magazzino Ordinato"}
