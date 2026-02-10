@@ -6,32 +6,27 @@ from sqlmodel import SQLModel, Field
 class Paziente(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     
-    # Dati Base
+    # Campi Obbligatori
     nome: str
     cognome: str
-    codice_fiscale: Optional[str] = None  # Utile per fatture
+    area: str  # Menu a tendina gestito in main.py
     
-    # Contatti
-    telefono: Optional[str] = None
-    email: Optional[str] = None
+    # Campi Facoltativi (Solo Note)
+    note: Optional[str] = None
     
-    # Gestione Clinica
-    area: str = "Altro" # Es: "Mano", "Colonna", "ATM"
-    
-    # Stati (Flag)
+    # Stati (Gestiti dai pulsanti)
     disdetto: bool = False
     data_disdetta: Optional[date] = None
     
+    # Visita esterna
     visita_esterna: bool = False
     data_visita: Optional[date] = None
-    
-    note: Optional[str] = None
 
 # --- MAGAZZINO ---
 class Inventario(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     materiale: str
-    area_stanza: str # Es: "Segreteria", "Mano", "Stanza 1"
+    area_stanza: str 
     quantita: int = 0
     obiettivo: int = 5
     soglia_minima: int = 2
@@ -39,7 +34,7 @@ class Inventario(SQLModel, table=True):
 # --- PRESTITI ---
 class Prestito(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    paziente_nome: str # Salviamo nome e cognome per semplicità
+    paziente_nome: str 
     oggetto: str
     data_prestito: date = Field(default_factory=date.today)
     data_scadenza: date
@@ -49,12 +44,12 @@ class Prestito(SQLModel, table=True):
 class Preventivo(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     paziente: str
-    dettagli: str # Es: "Tecar x5, Laser x3"
+    dettagli: str 
     totale: float
     data_creazione: date = Field(default_factory=date.today)
     note: Optional[str] = None
 
-# --- SCADENZE PAGAMENTI ---
+# --- SCADENZE ---
 class Scadenza(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     descrizione: str
@@ -62,4 +57,3 @@ class Scadenza(SQLModel, table=True):
     data_scadenza: date
     pagato: bool = False
     ricorrenza: str = "Singola"
-
