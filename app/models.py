@@ -3,7 +3,7 @@ from datetime import date
 from sqlmodel import SQLModel, Field, Relationship
 from enum import Enum
 
-# --- ENUMS (Originali) ---
+# --- ENUMS (I tuoi originali) ---
 class AreaEnum(str, Enum):
     MANO = "Mano-Polso"
     COLONNA = "Colonna"
@@ -65,60 +65,58 @@ class Prestito(SQLModel, table=True):
     restituito: bool = False
 
 # =========================================================
-# MODIFICHE SOLO QUI SOTTO (LISTINO E PREVENTIVI)
+# SEZIONE PREVENTIVI E LISTINO (AGGIORNATA E PULITA)
 # =========================================================
 
-# --- 4. LISTINO PREZZI ---
+# --- 4. LISTINO PREZZI (Nuova tabella per evitare conflitti) ---
 class Trattamento(SQLModel, table=True):
-    __tablename__ = "listino_prezzi_v6" # Versione nuova per pulizia
+    __tablename__ = "listino_prezzi_finale" 
     id: Optional[int] = Field(default=None, primary_key=True)
     nome: str
     area: AreaTrattamento = Field(default=AreaTrattamento.ALTRO)
     prezzo_base: float = Field(default=0.0)
 
     def __str__(self):
-        return f"{self.nome} (€ {self.prezzo_base})"
+        return f"[{self.area.value}] {self.nome} (€ {self.prezzo_base})"
 
-# --- 5. PREVENTIVI (TESTATA) ---
+# --- 5. PREVENTIVI TESTATA (Nuova tabella per evitare conflitti) ---
 class Preventivo(SQLModel, table=True):
-    __tablename__ = "preventivi_testata_v6" # Versione nuova per pulizia
+    __tablename__ = "preventivi_testata_finale"
     id: Optional[int] = Field(default=None, primary_key=True)
     data_creazione: date = Field(default_factory=date.today)
     
-    # Collegamento al Paziente (Usa la tabella pazienti originale)
+    # Collegamento al Paziente esistente
     paziente_id: Optional[int] = Field(default=None, foreign_key="pazienti_visite_v2.id")
     paziente_rel: Optional[Paziente] = Relationship(back_populates="preventivi")
 
-    # CAMPI NUOVI RICHIESTI
-    oggetto: str = Field(default="Piano di Cura", description="Es: Ciclo riabilitativo spalla")
-    note: Optional[str] = Field(default=None, description="Note aggiuntive per la stampa")
+    # Campi per la stampa
+    oggetto: str = Field(default="Piano di Cura", description="Es: Ciclo riabilitativo")
+    note: Optional[str] = Field(default=None, description="Note per la stampa")
     
     totale_calcolato: float = Field(default=0.0)
     accettato: bool = False
 
-    # Relazione con le righe (IL CARRELLO)
+    # Relazione con le righe
     righe: List["RigaPreventivo"] = Relationship(back_populates="preventivo")
 
     def __str__(self):
         return f"Prev. #{self.id} - {self.data_creazione}"
 
-# --- 6. PREVENTIVI (RIGHE - IL CARRELLO) ---
+# --- 6. PREVENTIVI RIGHE (Nuova tabella per evitare conflitti) ---
 class RigaPreventivo(SQLModel, table=True):
-    __tablename__ = "preventivi_righe_v6" # Versione nuova per pulizia
+    __tablename__ = "preventivi_righe_finale"
     id: Optional[int] = Field(default=None, primary_key=True)
     
-    # Collegamento al preventivo padre
-    preventivo_id: Optional[int] = Field(default=None, foreign_key="preventivi_testata_v6.id")
+    preventivo_id: Optional[int] = Field(default=None, foreign_key="preventivi_testata_finale.id")
     preventivo: Optional[Preventivo] = Relationship(back_populates="righe")
     
-    # Collegamento al prodotto
-    trattamento_id: Optional[int] = Field(default=None, foreign_key="listino_prezzi_v6.id")
+    trattamento_id: Optional[int] = Field(default=None, foreign_key="listino_prezzi_finale.id")
     trattamento: Optional[Trattamento] = Relationship()
     
     quantita: int = Field(default=1)
     sconto: float = Field(default=0.0)
 
-# --- 7. SCADENZARIO ---
+# --- 7. SCADENZARIO (Tuo originale) ---
 class Scadenza(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     descrizione: str
