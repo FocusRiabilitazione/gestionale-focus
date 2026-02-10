@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from typing import List
 from markupsafe import Markup
 
+# Assicurati che models contenga tutte le classi nuove
 from .database import engine, init_db
 from .models import Paziente, Inventario, Prestito, Preventivo, Scadenza, Trattamento, RigaPreventivo
 
@@ -76,7 +77,7 @@ class PazienteAdmin(ModelView, model=Paziente):
             session.commit()
         return RedirectResponse(request.url_for("admin:list", identity="paziente"), status_code=303)
 
-# --- 2. MAGAZZINO (CODICE ORIGINALE FUNZIONANTE) ---
+# --- 2. MAGAZZINO ---
 class InventarioAdmin(ModelView, model=Inventario):
     name = "Articolo"
     name_plural = "Magazzino"
@@ -84,12 +85,16 @@ class InventarioAdmin(ModelView, model=Inventario):
 
     def formatta_con_bottoni(model, attribute):
         stato = ""
-        if model.quantita <= model.soglia_minima:
-            stato = f"🔴 {model.quantita} (ORDINA!)"
-        elif model.quantita >= model.obiettivo:
-            stato = f"🌟 {model.quantita} (Pieno)"
+        q = model.quantita if model.quantita is not None else 0
+        s = model.soglia_minima if model.soglia_minima is not None else 0
+        o = model.obiettivo if model.obiettivo is not None else 0
+
+        if q <= s:
+            stato = f"🔴 {q} (ORDINA!)"
+        elif q >= o:
+            stato = f"🌟 {q} (Pieno)"
         else:
-            stato = f"✅ {model.quantita} (Ok)"
+            stato = f"✅ {q} (Ok)"
         style = "text-decoration:none; border:1px solid #ccc; padding:2px 6px; border-radius:4px; margin:0 2px; background:#f9f9f9;"
         btn_meno = f'<a href="/magazzino/meno/{model.id}" style="{style}">➖</a>'
         btn_piu = f'<a href="/magazzino/piu/{model.id}" style="{style}">➕</a>'
@@ -116,7 +121,7 @@ class PrestitoAdmin(ModelView, model=Prestito):
     async def on_model_change(self, data, model, is_created, request):
         if model.data_inizio and model.durata_giorni: model.data_scadenza = model.data_inizio + timedelta(days=model.durata_giorni)
 
-# --- 4. LISTINO PREZZI (Fondamentale per i Preventivi) ---
+# --- 4. LISTINO PREZZI (RIATTIVATO) ---
 class TrattamentoAdmin(ModelView, model=Trattamento):
     name = "Listino Prezzi"
     name_plural = "Listino"
@@ -132,15 +137,18 @@ class PreventivoAdmin(ModelView, model=Preventivo):
     name = "Preventivo"
     name_plural = "Preventivi"
     icon = "fa-solid fa-file-invoice-dollar"
-    inlines = [RigaPreventivoInline] 
+    inlines = [RigaPreventivoInline] # TABELLA INTERNA ATTIVA
 
     column_list = [Preventivo.data_creazione, Preventivo.paziente_rel, Preventivo.area_intervento, Preventivo.totale]
+    
+    # Qui scegli l'area solo come info, poi sotto aggiungi i trattamenti
     form_columns = [Preventivo.paziente_rel, Preventivo.area_intervento, Preventivo.data_creazione, Preventivo.descrizione, Preventivo.accettato]
 
     # CALCOLO TOTALE AL SALVATAGGIO
     async def after_model_change(self, data, model, is_created, request):
         # Ricalcolo preciso dopo il salvataggio
         with Session(engine) as session:
+            # Ricarichiamo il preventivo con le righe
             stmt = select(Preventivo).where(Preventivo.id == model.id)
             prev = session.exec(stmt).first()
             if prev and prev.righe:
@@ -181,7 +189,7 @@ admin = Admin(app, engine)
 admin.add_view(PazienteAdmin)
 admin.add_view(InventarioAdmin)
 admin.add_view(PrestitoAdmin)
-admin.add_view(TrattamentoAdmin) # HO RIATTIVATO QUESTO!
+admin.add_view(TrattamentoAdmin) # ORA È ATTIVO!
 admin.add_view(PreventivoAdmin)
 admin.add_view(ScadenzaAdmin)
 
