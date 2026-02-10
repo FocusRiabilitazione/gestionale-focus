@@ -1,7 +1,6 @@
 from fastapi import FastAPI, Request
 from sqladmin import Admin, ModelView, action
-from sqlmodel import select
-from wtforms import SelectField # Per il menu a tendina
+from wtforms import SelectField
 from datetime import date
 
 from .database import engine, init_db
@@ -9,68 +8,65 @@ from .models import Paziente, Inventario, Prestito, Preventivo, Scadenza
 
 app = FastAPI(title="Gestionale Focus Rehab")
 
-# --- CONFIGURAZIONE PAZIENTI AVANZATA ---
+# --- CONFIGURAZIONE PAZIENTI ---
 class PazienteAdmin(ModelView, model=Paziente):
     name = "Paziente"
     name_plural = "Pazienti"
     icon = "fa-solid fa-user-injured"
     
-    # Colonne visibili nella lista
+    # Colonne visibili nella lista (Pulite)
     column_list = [
         Paziente.cognome, 
         Paziente.nome, 
         Paziente.area, 
+        Paziente.note,
         Paziente.disdetto, 
         Paziente.data_disdetta
     ]
     
-    # Ricerca e Filtri
+    # Ricerca (Solo cognome e nome)
     column_searchable_list = [Paziente.cognome, Paziente.nome]
+    
+    # Filtri
     column_filters = [Paziente.area, Paziente.disdetto]
+    
+    # Ordinamento default
     column_default_sort = ("cognome", False)
 
-    # --- 1. CONFIGURAZIONE MENU A TENDINA (AREA) ---
-    # Questo obbliga a scegliere tra queste opzioni precise
+    # Menu a tendina per Area
     form_overrides = dict(area=SelectField)
     form_args = dict(area=dict(
         choices=["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico"],
-        label="Area di Competenza (Obbligatorio)"
+        label="Area di Competenza"
     ))
 
-    # Ordine dei campi nel form di creazione
+    # Campi nel form di creazione (Senza i facoltativi rimossi)
     form_columns = [
         Paziente.nome, Paziente.cognome, Paziente.area,
-        Paziente.telefono, Paziente.email, Paziente.codice_fiscale,
         Paziente.note,
         Paziente.disdetto, Paziente.data_disdetta
     ]
 
-    # --- 2. AZIONE AUTOMATICA "DISDETTA" ---
-    # Questo crea un pulsante nel menu "Actions"
+    # AZIONE AUTOMATICA "DISDETTA"
     @action(
         name="segna_disdetto",
         label="❌ Segna come Disdetto",
         confirmation_message="Vuoi segnare i pazienti selezionati come Disdetti? Verrà inserita la data di oggi."
     )
     async def action_disdetto(self, request: Request):
-        # Recupera gli ID selezionati
         pks = request.query_params.get("pks", "").split(",")
         if pks:
             with self.session_maker() as session:
                 for pk in pks:
-                    # Trova il paziente
                     model = session.get(Paziente, int(pk))
                     if model:
-                        # APPLICA LA LOGICA AUTOMATICA
                         model.disdetto = True
-                        model.data_disdetta = date.today() # Data di OGGI automatica
+                        model.data_disdetta = date.today()
                         session.add(model)
                 session.commit()
-        # Ricarica la pagina
         return
 
-# --- ALTRE VISTE (Standard) ---
-
+# --- ALTRE VISTE ---
 class InventarioAdmin(ModelView, model=Inventario):
     name = "Articolo"
     name_plural = "Magazzino"
