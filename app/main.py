@@ -11,7 +11,7 @@ from .models import Paziente, Inventario, Prestito, Preventivo, Scadenza
 
 app = FastAPI(title="Gestionale Focus Rehab")
 
-# --- IMPORTAZIONE ---
+# --- STRUTTURA IMPORT ---
 class PazienteImport(BaseModel):
     nome: str
     cognome: str
@@ -23,7 +23,6 @@ class PazienteAdmin(ModelView, model=Paziente):
     name_plural = "Pazienti"
     icon = "fa-solid fa-user-injured"
     
-    # Formattazione visiva
     column_formatters = {
         Paziente.disdetto: lambda m, a: "✅" if m.disdetto else "",
         Paziente.visita_medica: lambda m, a: "🩺" if m.visita_medica else ""
@@ -43,6 +42,7 @@ class PazienteAdmin(ModelView, model=Paziente):
         Paziente.disdetto, Paziente.data_disdetta
     ]
 
+    # Azione sincrona (senza async) per evitare errori di NoneType
     @action(name="segna_disdetto", label="❌ Segna come Disdetto", confirmation_message="Confermi?")
     def action_disdetto(self, request: Request):
         pks = request.query_params.get("pks", "").split(",")
@@ -57,18 +57,18 @@ class PazienteAdmin(ModelView, model=Paziente):
             session.commit()
         return RedirectResponse(request.url_for("admin:list", identity="paziente"), status_code=303)
 
-# --- MAGAZZINO ---
+# --- MAGAZZINO (SEMAFORO CORRETTO) ---
 class InventarioAdmin(ModelView, model=Inventario):
     name = "Articolo"
     name_plural = "Magazzino"
     icon = "fa-solid fa-box"
 
-    # SEMAFORO INTELLIGENTE 🚦
-    # Ho reso la logica più compatta per evitare errori
+    # SEMAFORO 2.0 🚦
     column_formatters = {
         Inventario.quantita: lambda m, a: (
-            f"⚠️ {m.quantita} (ORDINA!)" if m.quantita < m.soglia_minima 
-            else (f"🌟 {m.quantita} (OK)" if m.quantita >= m.obiettivo else str(m.quantita))
+            f"🔴 {m.quantita} (ORDINA!)" if m.quantita <= m.soglia_minima  # <= include la soglia
+            else (f"🌟 {m.quantita} (Pieno)" if m.quantita >= m.obiettivo 
+            else f"✅ {m.quantita} (Ok)") # Mettiamo il verde nel mezzo
         )
     }
 
@@ -135,4 +135,4 @@ def import_pazienti(lista_pazienti: List[PazienteImport]):
 
 @app.get("/")
 def home():
-    return {"msg": "Gestionale Focus Rehab - Ripristinato"}
+    return {"msg": "Gestionale Focus Rehab - Semaforo Attivo"}
