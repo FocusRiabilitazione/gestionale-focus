@@ -7,43 +7,22 @@ from starlette.responses import RedirectResponse
 from pydantic import BaseModel
 from typing import List
 from markupsafe import Markup
+from sqlalchemy import create_engine
 
-from .database import engine, init_db
+# --- DATABASE SETUP (V10 - Pulito) ---
+sqlite_file_name = "database_v10_definitivo.db" 
+sqlite_url = f"sqlite:///{sqlite_file_name}"
+connect_args = {"check_same_thread": False}
+engine = create_engine(sqlite_url, connect_args=connect_args)
+
+def init_db():
+    SQLModel.metadata.create_all(engine)
+
 from .models import Paziente, Inventario, Prestito, Preventivo, Scadenza, Trattamento, RigaPreventivo
 
 app = FastAPI(title="Gestionale Focus Rehab")
 
-# --- CSS DARK MODE MODERNO ---
-# Questo blocco trasforma l'interfaccia standard in una Dark Mode professionale
-class DarkAdmin(Admin):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs, title="Focus Rehab | Admin")
-        self.templates.env.globals["custom_css"] = """
-        <style>
-            :root {
-                --body-bg: #1a1d21;
-                --card-bg: #22252a;
-                --text-color: #e0e0e0;
-                --border-color: #333840;
-                --accent-color: #3498db;
-                --sidebar-bg: #111315;
-            }
-            body { background-color: var(--body-bg) !important; color: var(--text-color) !important; font-family: 'Inter', sans-serif; }
-            .navbar { background-color: var(--sidebar-bg) !important; border-bottom: 1px solid var(--border-color); }
-            .sidebar { background-color: var(--sidebar-bg) !important; border-right: 1px solid var(--border-color); }
-            .card { background-color: var(--card-bg) !important; border: 1px solid var(--border-color); box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-            .table { color: var(--text-color) !important; }
-            .table thead th { background-color: #2c3036 !important; border-color: var(--border-color) !important; color: #fff; }
-            .table td, .table th { border-color: var(--border-color) !important; }
-            a { color: var(--accent-color) !important; }
-            .btn-primary { background-color: var(--accent-color) !important; border: none; }
-            .form-control, .form-select { background-color: #2c3036 !important; border: 1px solid var(--border-color) !important; color: #fff !important; }
-            .breadcrumb-item.active { color: #aaa !important; }
-            h1, h2, h3, h4, h5 { color: #fff !important; }
-        </style>
-        """
-
-# --- STRUTTURE IMPORTAZIONE ---
+# --- STRUTTURE IMPORT ---
 class PazienteImport(BaseModel):
     nome: str; cognome: str; area: str
 class InventarioImport(BaseModel):
@@ -53,7 +32,7 @@ class PrestitoImport(BaseModel):
 class TrattamentoImport(BaseModel):
     nome: str; area: str; prezzo: float
 
-# --- ENDPOINT STAMPA (Totale calcolato QUI per sicurezza) ---
+# --- STAMPA PREVENTIVO ---
 @app.get("/stampa_preventivo/{prev_id}", response_class=HTMLResponse)
 def stampa_preventivo(prev_id: int):
     with Session(engine) as session:
@@ -70,7 +49,7 @@ def stampa_preventivo(prev_id: int):
             righe_html += f"<tr><td style='border-bottom:1px solid #ddd; padding:8px;'>{nome}</td><td style='border-bottom:1px solid #ddd; padding:8px; text-align:center;'>{riga.quantita}</td><td style='border-bottom:1px solid #ddd; padding:8px; text-align:right;'>€ {sub:.2f}</td></tr>"
 
         html = f"""
-        <html><body style="font-family:Arial; padding:40px; max-width:800px; margin:auto; background:white; color:black;">
+        <html><body style="font-family:Arial; padding:40px; max-width:800px; margin:auto;">
             <div style="text-align:center; margin-bottom:40px;">
                 <h1>FOCUS REHAB</h1>
                 <p>Preventivo di Riabilitazione</p>
@@ -88,7 +67,7 @@ def stampa_preventivo(prev_id: int):
             <h3 style="text-align:right; margin-top:30px;">TOTALE: € {totale:.2f}</h3>
             <p style="margin-top:20px; font-size:0.9em; color:#555;">Note: {prev.note if prev.note else ''}</p>
             <div style="text-align:center; margin-top:50px;">
-                <button onclick="window.print()" style="padding:10px 20px; font-size:16px; cursor:pointer;">🖨️ STAMPA ADESSO</button>
+                <button onclick="window.print()" style="padding:10px 20px; font-size:16px;">🖨️ STAMPA ADESSO</button>
             </div>
         </body></html>
         """
@@ -113,7 +92,7 @@ def diminuisci_quantita(request: Request, pk: int):
 class PazienteAdmin(ModelView, model=Paziente):
     name="Paziente"; name_plural="Pazienti"; icon="fa-solid fa-user-injured"
     column_formatters={Paziente.disdetto: lambda m,a: "✅" if m.disdetto else "", Paziente.visita_medica: lambda m,a: "🩺" if m.visita_medica else ""}
-    column_list=[Paziente.cognome, Paziente.nome, Paziente.area, Paziente.visita_medica, Paziente.data_visita, Paziente.disdetto]
+    column_list=[Paziente.cognome, Paziente.nome, Paziente.area, Paziente.visita_medica, Paziente.disdetto]
     column_searchable_list=[Paziente.cognome, Paziente.nome]
     form_columns=[Paziente.nome, Paziente.cognome, Paziente.area, Paziente.note, Paziente.visita_medica, Paziente.data_visita, Paziente.disdetto, Paziente.data_disdetta]
     @action(name="segna_disdetto", label="❌ Segna Disdetto", confirmation_message="Confermi?")
@@ -135,7 +114,7 @@ class InventarioAdmin(ModelView, model=Inventario):
         if model.quantita <= model.soglia_minima: stato = f"🔴 {model.quantita} (ORDINA!)"
         elif model.quantita >= model.obiettivo: stato = f"🌟 {model.quantita} (Pieno)"
         else: stato = f"✅ {model.quantita} (Ok)"
-        style = "text-decoration:none; border:1px solid #555; padding:2px 6px; border-radius:4px; margin:0 2px; background:#333; color:white;"
+        style = "text-decoration:none; border:1px solid #ccc; padding:2px 6px; border-radius:4px; margin:0 2px; background:#f9f9f9;"
         return Markup(f'<a href="/magazzino/meno/{model.id}" style="{style}">➖</a> &nbsp; <b>{stato}</b> &nbsp; <a href="/magazzino/piu/{model.id}" style="{style}">➕</a>')
     column_formatters = {Inventario.quantita: formatta_con_bottoni}
     column_list=[Inventario.materiale, Inventario.area_stanza, Inventario.quantita, Inventario.soglia_minima, Inventario.obiettivo]
@@ -148,7 +127,7 @@ class PrestitoAdmin(ModelView, model=Prestito):
     def formatta_scadenza(model, attribute):
         if not model.data_scadenza: return "⏳ In corso"
         diff = (model.data_scadenza - date.today()).days
-        if diff < 0: return Markup(f'<span style="color:#ff6b6b; font-weight:bold;">🔴 SCADUTO da {abs(diff)} gg!</span>')
+        if diff < 0: return Markup(f'<span style="color:red; font-weight:bold;">🔴 SCADUTO da {abs(diff)} gg!</span>')
         return Markup(f"⏳ Scade tra {diff} gg")
     column_formatters = {Prestito.data_scadenza: formatta_scadenza}
     column_list=[Prestito.area, Prestito.oggetto, Prestito.paziente, Prestito.data_scadenza]
@@ -164,11 +143,11 @@ class TrattamentoAdmin(ModelView, model=Trattamento):
     column_list = [Trattamento.nome, Trattamento.prezzo_base]
     form_columns = [Trattamento.nome, Trattamento.prezzo_base]
 
-# --- 5. PREVENTIVI (CORRETTI E SICURI) ---
+# --- 5. PREVENTIVI (CORREZIONE APPLICATA QUI) ---
 class RigaPreventivoInline(ModelView, model=RigaPreventivo):
-    # Colonne visibili nella lista
+    # Queste colonne sono per la visualizzazione nella lista
     column_list = [RigaPreventivo.trattamento, RigaPreventivo.quantita, RigaPreventivo.sconto]
-    # !!! FONDAMENTALE: Colonne visibili nel modulo di modifica !!!
+    # !!! ECCO LA RIGA CHE MANCAVA - SENZA QUESTA I CAMPI SONO NASCOSTI !!!
     form_columns = [RigaPreventivo.trattamento, RigaPreventivo.quantita, RigaPreventivo.sconto]
 
 class PreventivoAdmin(ModelView, model=Preventivo):
@@ -176,10 +155,10 @@ class PreventivoAdmin(ModelView, model=Preventivo):
     name_plural = "Preventivi"
     icon = "fa-solid fa-file-invoice-dollar"
     
-    inlines = [RigaPreventivoInline] 
+    inlines = [RigaPreventivoInline] # Questo dice al sistema di mostrare la tabella interna
 
     def link_stampa(model, attribute):
-        return Markup(f'<a href="/stampa_preventivo/{model.id}" target="_blank" style="font-size:1.2em; color:#3498db;">🖨️ STAMPA</a>')
+        return Markup(f'<a href="/stampa_preventivo/{model.id}" target="_blank" style="font-size:1.2em;">🖨️ STAMPA</a>')
 
     column_formatters = {Preventivo.id: link_stampa}
     column_list = [Preventivo.id, Preventivo.data_creazione, Preventivo.paziente_rel, Preventivo.oggetto]
@@ -190,9 +169,8 @@ class ScadenzaAdmin(ModelView, model=Scadenza):
     name="Scadenza"; name_plural="Scadenzario"; icon="fa-solid fa-calendar"
     column_list=[Scadenza.descrizione, Scadenza.data_scadenza, Scadenza.importo]
 
-# --- ATTIVAZIONE (CON TEMA DARK) ---
-# Usiamo la classe DarkAdmin personalizzata invece di Admin standard
-admin = DarkAdmin(app, engine) 
+# --- ATTIVAZIONE ---
+admin = Admin(app, engine)
 admin.add_view(PazienteAdmin)
 admin.add_view(InventarioAdmin)
 admin.add_view(PrestitoAdmin)
