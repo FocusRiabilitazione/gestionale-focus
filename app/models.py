@@ -3,7 +3,7 @@ from datetime import date
 from sqlmodel import SQLModel, Field, Relationship
 from enum import Enum
 
-# --- ENUMS ---
+# --- ENUMS (I tuoi originali) ---
 class AreaEnum(str, Enum):
     MANO = "Mano-Polso"
     COLONNA = "Colonna"
@@ -22,7 +22,7 @@ class AreaTrattamento(str, Enum):
     VISITA = "Visita"
     ALTRO = "Altro"
 
-# --- 1. PAZIENTI ---
+# --- 1. PAZIENTI (TUO CODICE ORIGINALE) ---
 class Paziente(SQLModel, table=True):
     __tablename__ = "pazienti_visite_v2"
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -35,12 +35,13 @@ class Paziente(SQLModel, table=True):
     visita_medica: bool = Field(default=False)
     data_visita: Optional[date] = None
     
+    # Relazione necessaria per i preventivi
     preventivi: List["Preventivo"] = Relationship(back_populates="paziente_rel")
 
     def __str__(self):
         return f"{self.cognome} {self.nome}"
 
-# --- 2. MAGAZZINO ---
+# --- 2. MAGAZZINO (TUO CODICE ORIGINALE) ---
 class Inventario(SQLModel, table=True):
     __tablename__ = "inventario_smart_v2"
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -50,7 +51,7 @@ class Inventario(SQLModel, table=True):
     soglia_minima: int = Field(default=2)
     obiettivo: int = Field(default=5)
 
-# --- 3. PRESTITI ---
+# --- 3. PRESTITI (TUO CODICE ORIGINALE) ---
 class Prestito(SQLModel, table=True):
     __tablename__ = "prestiti_smart_v1"
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -65,7 +66,7 @@ class Prestito(SQLModel, table=True):
 
 # --- 4. LISTINO PREZZI ---
 class Trattamento(SQLModel, table=True):
-    __tablename__ = "listino_prezzi_finale"
+    __tablename__ = "listino_prezzi_finale" 
     id: Optional[int] = Field(default=None, primary_key=True)
     nome: str
     prezzo_base: float = Field(default=0.0)
@@ -86,6 +87,7 @@ class Preventivo(SQLModel, table=True):
     note: Optional[str] = None
     totale_calcolato: float = Field(default=0.0)
 
+    # Relazione con le righe
     righe: List["RigaPreventivo"] = Relationship(back_populates="preventivo")
 
     def __str__(self):
