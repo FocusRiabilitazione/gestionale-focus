@@ -7,22 +7,13 @@ from starlette.responses import RedirectResponse
 from pydantic import BaseModel
 from typing import List
 from markupsafe import Markup
-from sqlalchemy import create_engine
 
-# --- DATABASE SETUP (V10 - Pulito) ---
-sqlite_file_name = "database_v10_definitivo.db" 
-sqlite_url = f"sqlite:///{sqlite_file_name}"
-connect_args = {"check_same_thread": False}
-engine = create_engine(sqlite_url, connect_args=connect_args)
-
-def init_db():
-    SQLModel.metadata.create_all(engine)
-
+from .database import engine, init_db
 from .models import Paziente, Inventario, Prestito, Preventivo, Scadenza, Trattamento, RigaPreventivo
 
 app = FastAPI(title="Gestionale Focus Rehab")
 
-# --- STRUTTURE IMPORT ---
+# --- STRUTTURE IMPORTAZIONE ---
 class PazienteImport(BaseModel):
     nome: str; cognome: str; area: str
 class InventarioImport(BaseModel):
@@ -32,7 +23,7 @@ class PrestitoImport(BaseModel):
 class TrattamentoImport(BaseModel):
     nome: str; area: str; prezzo: float
 
-# --- STAMPA PREVENTIVO ---
+# --- ENDPOINT STAMPA ---
 @app.get("/stampa_preventivo/{prev_id}", response_class=HTMLResponse)
 def stampa_preventivo(prev_id: int):
     with Session(engine) as session:
@@ -42,7 +33,7 @@ def stampa_preventivo(prev_id: int):
         righe_html = ""
         totale = 0
         for riga in prev.righe:
-            nome = riga.trattamento.nome if riga.trattamento else "Servizio rimosso"
+            nome = riga.trattamento.nome if riga.trattamento else "Servizio"
             prz = riga.trattamento.prezzo_base if riga.trattamento else 0
             sub = (prz * riga.quantita) - riga.sconto
             totale += sub
@@ -78,21 +69,23 @@ def stampa_preventivo(prev_id: int):
 def aumenta_quantita(request: Request, pk: int):
     with Session(engine) as session:
         item = session.get(Inventario, pk)
-        if item: item.quantita += 1; session.add(item); session.commit()
+        if item:
+            item.quantita += 1; session.add(item); session.commit()
     return RedirectResponse(request.url_for("admin:list", identity="inventario"), status_code=303)
 
 @app.get("/magazzino/meno/{pk}")
 def diminuisci_quantita(request: Request, pk: int):
     with Session(engine) as session:
         item = session.get(Inventario, pk)
-        if item and item.quantita > 0: item.quantita -= 1; session.add(item); session.commit()
+        if item and item.quantita > 0:
+            item.quantita -= 1; session.add(item); session.commit()
     return RedirectResponse(request.url_for("admin:list", identity="inventario"), status_code=303)
 
 # --- 1. PAZIENTI ---
 class PazienteAdmin(ModelView, model=Paziente):
     name="Paziente"; name_plural="Pazienti"; icon="fa-solid fa-user-injured"
     column_formatters={Paziente.disdetto: lambda m,a: "✅" if m.disdetto else "", Paziente.visita_medica: lambda m,a: "🩺" if m.visita_medica else ""}
-    column_list=[Paziente.cognome, Paziente.nome, Paziente.area, Paziente.visita_medica, Paziente.disdetto]
+    column_list=[Paziente.cognome, Paziente.nome, Paziente.area, Paziente.visita_medica, Paziente.data_visita, Paziente.disdetto]
     column_searchable_list=[Paziente.cognome, Paziente.nome]
     form_columns=[Paziente.nome, Paziente.cognome, Paziente.area, Paziente.note, Paziente.visita_medica, Paziente.data_visita, Paziente.disdetto, Paziente.data_disdetta]
     @action(name="segna_disdetto", label="❌ Segna Disdetto", confirmation_message="Confermi?")
@@ -143,11 +136,10 @@ class TrattamentoAdmin(ModelView, model=Trattamento):
     column_list = [Trattamento.nome, Trattamento.prezzo_base]
     form_columns = [Trattamento.nome, Trattamento.prezzo_base]
 
-# --- 5. PREVENTIVI (CORREZIONE APPLICATA QUI) ---
+# --- 5. PREVENTIVI ---
 class RigaPreventivoInline(ModelView, model=RigaPreventivo):
-    # Queste colonne sono per la visualizzazione nella lista
     column_list = [RigaPreventivo.trattamento, RigaPreventivo.quantita, RigaPreventivo.sconto]
-    # !!! ECCO LA RIGA CHE MANCAVA - SENZA QUESTA I CAMPI SONO NASCOSTI !!!
+    # ECCO LA CORREZIONE FONDAMENTALE - SENZA QUESTA NON VEDI I CAMPI
     form_columns = [RigaPreventivo.trattamento, RigaPreventivo.quantita, RigaPreventivo.sconto]
 
 class PreventivoAdmin(ModelView, model=Preventivo):
@@ -155,14 +147,26 @@ class PreventivoAdmin(ModelView, model=Preventivo):
     name_plural = "Preventivi"
     icon = "fa-solid fa-file-invoice-dollar"
     
-    inlines = [RigaPreventivoInline] # Questo dice al sistema di mostrare la tabella interna
+    inlines = [RigaPreventivoInline] 
 
     def link_stampa(model, attribute):
         return Markup(f'<a href="/stampa_preventivo/{model.id}" target="_blank" style="font-size:1.2em;">🖨️ STAMPA</a>')
 
-    column_formatters = {Preventivo.id: link_stampa}
-    column_list = [Preventivo.id, Preventivo.data_creazione, Preventivo.paziente_rel, Preventivo.oggetto]
+    column_formatters = {Preventivo.id: link_stampa} 
+    column_list = [Preventivo.id, Preventivo.data_creazione, Preventivo.paziente_rel, Preventivo.totale_calcolato]
     form_columns = [Preventivo.paziente_rel, Preventivo.data_creazione, Preventivo.oggetto, Preventivo.note]
+
+    async def after_model_change(self, data, model, is_created, request):
+        # Questo calcolo è sicuro perché è molto semplice
+        with Session(engine) as session:
+            stmt = select(Preventivo).where(Preventivo.id == model.id)
+            prev = session.exec(stmt).first()
+            if prev and prev.righe:
+                tot = 0
+                for riga in prev.righe:
+                    if riga.trattamento: tot += (riga.trattamento.prezzo_base * riga.quantita) - riga.sconto
+                prev.totale_calcolato = tot
+                session.add(prev); session.commit()
 
 # 6. SCADENZE
 class ScadenzaAdmin(ModelView, model=Scadenza):
