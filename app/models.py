@@ -24,7 +24,7 @@ class AreaTrattamento(str, Enum):
 
 # --- PAZIENTI ---
 class Paziente(SQLModel, table=True):
-    __tablename__ = "pazienti_visite_v2"
+    __tablename__ = "pazienti_table_v9"
     id: Optional[int] = Field(default=None, primary_key=True)
     nome: str
     cognome: str
@@ -42,7 +42,7 @@ class Paziente(SQLModel, table=True):
 
 # --- MAGAZZINO ---
 class Inventario(SQLModel, table=True):
-    __tablename__ = "inventario_smart_v2"
+    __tablename__ = "inventario_table_v9"
     id: Optional[int] = Field(default=None, primary_key=True)
     materiale: str
     area_stanza: str 
@@ -52,11 +52,11 @@ class Inventario(SQLModel, table=True):
 
 # --- PRESTITI ---
 class Prestito(SQLModel, table=True):
-    __tablename__ = "prestiti_smart_v1"
+    __tablename__ = "prestiti_table_v9"
     id: Optional[int] = Field(default=None, primary_key=True)
     oggetto: str
     area: AreaPrestito = Field(default=AreaPrestito.OGGETTI)
-    paziente_id: Optional[int] = Field(default=None, foreign_key="pazienti_visite_v2.id")
+    paziente_id: Optional[int] = Field(default=None, foreign_key="pazienti_table_v9.id")
     paziente: Optional[Paziente] = Relationship()
     data_inizio: date = Field(default_factory=date.today)
     durata_giorni: int = Field(default=7)
@@ -65,10 +65,9 @@ class Prestito(SQLModel, table=True):
 
 # --- LISTINO PREZZI ---
 class Trattamento(SQLModel, table=True):
-    __tablename__ = "listino_prezzi_v3"
+    __tablename__ = "listino_prezzi_v9" 
     id: Optional[int] = Field(default=None, primary_key=True)
     nome: str
-    area: AreaTrattamento = Field(default=AreaTrattamento.ALTRO)
     prezzo_base: float = Field(default=0.0)
 
     def __str__(self):
@@ -76,17 +75,17 @@ class Trattamento(SQLModel, table=True):
 
 # --- PREVENTIVI (TESTATA) ---
 class Preventivo(SQLModel, table=True):
-    __tablename__ = "preventivi_smart_v3"
+    __tablename__ = "preventivi_testata_v9"
     id: Optional[int] = Field(default=None, primary_key=True)
     data_creazione: date = Field(default_factory=date.today)
     
-    paziente_id: Optional[int] = Field(default=None, foreign_key="pazienti_visite_v2.id")
+    paziente_id: Optional[int] = Field(default=None, foreign_key="pazienti_table_v9.id")
     paziente_rel: Optional[Paziente] = Relationship(back_populates="preventivi")
 
-    oggetto: str = Field(default="Piano di Cura", description="Es: Ciclo 10 sedute")
+    oggetto: str = Field(default="Piano di cura", description="Es: Ciclo riabilitativo")
     note: Optional[str] = None
-    
-    # Le righe del preventivo
+
+    # Relazione con le righe
     righe: List["RigaPreventivo"] = Relationship(back_populates="preventivo")
 
     def __str__(self):
@@ -94,13 +93,13 @@ class Preventivo(SQLModel, table=True):
 
 # --- PREVENTIVI (RIGHE) ---
 class RigaPreventivo(SQLModel, table=True):
-    __tablename__ = "preventivi_righe_v3"
+    __tablename__ = "preventivi_righe_v9"
     id: Optional[int] = Field(default=None, primary_key=True)
     
-    preventivo_id: Optional[int] = Field(default=None, foreign_key="preventivi_smart_v3.id")
+    preventivo_id: Optional[int] = Field(default=None, foreign_key="preventivi_testata_v9.id")
     preventivo: Optional[Preventivo] = Relationship(back_populates="righe")
     
-    trattamento_id: Optional[int] = Field(default=None, foreign_key="listino_prezzi_v3.id")
+    trattamento_id: Optional[int] = Field(default=None, foreign_key="listino_prezzi_v9.id")
     trattamento: Optional[Trattamento] = Relationship()
     
     quantita: int = Field(default=1)
