@@ -21,7 +21,7 @@ class InventarioImport(BaseModel):
 class PrestitoImport(BaseModel):
     oggetto: str; area: str; nome_paziente: str; cognome_paziente: str; durata_giorni: int=7
 
-# --- ENDPOINT STAMPA (NUOVO!) ---
+# --- ENDPOINT STAMPA ---
 @app.get("/stampa_preventivo/{prev_id}", response_class=HTMLResponse)
 def stampa_preventivo(prev_id: int):
     with Session(engine) as session:
@@ -79,7 +79,7 @@ def diminuisci_quantita(request: Request, pk: int):
 
 # --- AMMINISTRAZIONE ---
 
-# 1. PAZIENTI (TUO CODICE ORIGINALE)
+# 1. PAZIENTI
 class PazienteAdmin(ModelView, model=Paziente):
     name="Paziente"; name_plural="Pazienti"; icon="fa-solid fa-user-injured"
     column_formatters={Paziente.disdetto: lambda m,a: "✅" if m.disdetto else "", Paziente.visita_medica: lambda m,a: "🩺" if m.visita_medica else ""}
@@ -97,7 +97,7 @@ class PazienteAdmin(ModelView, model=Paziente):
             session.commit()
         return RedirectResponse(request.url_for("admin:list", identity="paziente"), status_code=303)
 
-# 2. MAGAZZINO (TUO CODICE ORIGINALE)
+# 2. MAGAZZINO
 class InventarioAdmin(ModelView, model=Inventario):
     name="Articolo"; name_plural="Magazzino"; icon="fa-solid fa-box"
     def formatta_con_bottoni(model, attribute):
@@ -111,7 +111,7 @@ class InventarioAdmin(ModelView, model=Inventario):
     column_list=[Inventario.materiale, Inventario.area_stanza, Inventario.quantita, Inventario.soglia_minima, Inventario.obiettivo]
     form_columns=[Inventario.materiale, Inventario.area_stanza, Inventario.quantita, Inventario.soglia_minima, Inventario.obiettivo]
 
-# 3. PRESTITI (TUO CODICE ORIGINALE)
+# 3. PRESTITI
 class PrestitoAdmin(ModelView, model=Prestito):
     name="Prestito"; name_plural="Prestiti"; icon="fa-solid fa-stopwatch"
     def list_query(self, request): return select(Prestito).where(Prestito.restituito == False)
@@ -126,7 +126,7 @@ class PrestitoAdmin(ModelView, model=Prestito):
     async def on_model_change(self, data, model, is_created, request):
         if model.data_inizio and model.durata_giorni: model.data_scadenza = model.data_inizio + timedelta(days=model.durata_giorni)
 
-# --- 4. LISTINO PREZZI (RIATTIVATO) ---
+# --- 4. LISTINO PREZZI ---
 class TrattamentoAdmin(ModelView, model=Trattamento):
     name = "Listino Prezzi"
     name_plural = "Listino Prezzi"
@@ -134,22 +134,23 @@ class TrattamentoAdmin(ModelView, model=Trattamento):
     column_list = [Trattamento.nome, Trattamento.prezzo_base]
     form_columns = [Trattamento.nome, Trattamento.prezzo_base]
 
-# --- 5. PREVENTIVI (FUNZIONANTE E CON STAMPA) ---
+# --- 5. PREVENTIVI ---
 class RigaPreventivoInline(ModelView, model=RigaPreventivo):
     column_list = [RigaPreventivo.trattamento, RigaPreventivo.quantita, RigaPreventivo.sconto]
+    # !!! QUESTA È LA RIGA CHE MANCAVA E CHE FA APPARIRE LA TENDINA !!!
+    form_columns = [RigaPreventivo.trattamento, RigaPreventivo.quantita, RigaPreventivo.sconto]
 
 class PreventivoAdmin(ModelView, model=Preventivo):
     name = "Preventivo"
     name_plural = "Preventivi"
     icon = "fa-solid fa-file-invoice-dollar"
     
-    # Questo abilita la tabella per inserire i servizi
     inlines = [RigaPreventivoInline] 
 
     def link_stampa(model, attribute):
         return Markup(f'<a href="/stampa_preventivo/{model.id}" target="_blank" style="font-size:1.2em;">🖨️ STAMPA</a>')
 
-    column_formatters = {Preventivo.id: link_stampa} # Sostituisce l'ID col tasto stampa
+    column_formatters = {Preventivo.id: link_stampa}
     column_list = [Preventivo.id, Preventivo.data_creazione, Preventivo.paziente_rel, Preventivo.totale_calcolato]
     form_columns = [Preventivo.paziente_rel, Preventivo.data_creazione, Preventivo.oggetto, Preventivo.note]
 
@@ -174,14 +175,14 @@ admin = Admin(app, engine)
 admin.add_view(PazienteAdmin)
 admin.add_view(InventarioAdmin)
 admin.add_view(PrestitoAdmin)
-admin.add_view(TrattamentoAdmin) # Riattivato
+admin.add_view(TrattamentoAdmin) 
 admin.add_view(PreventivoAdmin)
 admin.add_view(ScadenzaAdmin)
 
 @app.on_event("startup")
 def on_startup(): init_db()
 
-# --- IMPORTATORI (I TUOI ORIGINALI) ---
+# --- IMPORTATORI ---
 @app.post("/import-rapido")
 def import_pazienti(l: List[PazienteImport]):
     with Session(engine) as s:
