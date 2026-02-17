@@ -9,8 +9,7 @@ from typing import List
 from markupsafe import Markup
 from sqlalchemy import create_engine
 
-# --- DATABASE SETUP ---
-# Cambio nome per garantire un avvio pulito senza errori vecchi
+# --- DATABASE SETUP (Nuovo nome = Reset Crash) ---
 sqlite_file_name = "database_sicuro_v1.db" 
 sqlite_url = f"sqlite:///{sqlite_file_name}"
 connect_args = {"check_same_thread": False}
@@ -33,7 +32,7 @@ class PrestitoImport(BaseModel):
 class TrattamentoImport(BaseModel):
     nome: str; area: str; prezzo: float
 
-# --- ENDPOINT STAMPA (Calcola il totale QUI, senza bloccare il DB) ---
+# --- ENDPOINT STAMPA SICURO ---
 @app.get("/stampa_preventivo/{prev_id}", response_class=HTMLResponse)
 def stampa_preventivo(prev_id: int):
     with Session(engine) as session:
@@ -138,25 +137,20 @@ class PrestitoAdmin(ModelView, model=Prestito):
 
 # --- 4. LISTINO PREZZI ---
 class TrattamentoAdmin(ModelView, model=Trattamento):
-    name = "Listino Prezzi"
+    name = "Listino"
     name_plural = "Listino Prezzi"
     icon = "fa-solid fa-tags"
     column_list = [Trattamento.nome, Trattamento.prezzo_base]
     form_columns = [Trattamento.nome, Trattamento.prezzo_base]
 
-# --- 5. PREVENTIVI (LA PARTE AGGIORNATA) ---
-class RigaPreventivoInline(ModelView, model=RigaPreventivo):
-    # Questa riga mancava e nascondeva tutto
-    form_columns = [RigaPreventivo.trattamento, RigaPreventivo.quantita, RigaPreventivo.sconto]
-    column_list = [RigaPreventivo.trattamento, RigaPreventivo.quantita, RigaPreventivo.sconto]
+# --- 5. PREVENTIVI (STRATEGIA "DOPPIO MENU") ---
 
+# Menu A: Crea il Preventivo (Intestazione)
 class PreventivoAdmin(ModelView, model=Preventivo):
-    name = "Preventivo"
-    name_plural = "Preventivi"
-    icon = "fa-solid fa-file-invoice-dollar"
+    name = "1. Nuovi Preventivi"
+    name_plural = "1. Nuovi Preventivi"
+    icon = "fa-solid fa-file-contract"
     
-    inlines = [RigaPreventivoInline] # Attiva la tabella prodotti
-
     def link_stampa(model, attribute):
         return Markup(f'<a href="/stampa_preventivo/{model.id}" target="_blank" style="font-size:1.2em;">🖨️ STAMPA</a>')
 
@@ -164,7 +158,16 @@ class PreventivoAdmin(ModelView, model=Preventivo):
     column_list = [Preventivo.id, Preventivo.data_creazione, Preventivo.paziente_rel, Preventivo.oggetto]
     form_columns = [Preventivo.paziente_rel, Preventivo.data_creazione, Preventivo.oggetto, Preventivo.note]
 
-    # Niente after_model_change per evitare crash. Il calcolo lo fa la stampa.
+# Menu B: Riempi il Preventivo (Tabella pura)
+class RigaPreventivoAdmin(ModelView, model=RigaPreventivo):
+    name = "2. Riempi Preventivo"
+    name_plural = "2. Riempi Preventivo"
+    icon = "fa-solid fa-cart-plus"
+    
+    # Qui vedi la lista di tutte le righe aggiunte
+    column_list = [RigaPreventivo.preventivo, RigaPreventivo.trattamento, RigaPreventivo.quantita, RigaPreventivo.sconto]
+    # Qui hai il modulo semplice per aggiungere una riga
+    form_columns = [RigaPreventivo.preventivo, RigaPreventivo.trattamento, RigaPreventivo.quantita, RigaPreventivo.sconto]
 
 # 6. SCADENZE
 class ScadenzaAdmin(ModelView, model=Scadenza):
@@ -177,7 +180,8 @@ admin.add_view(PazienteAdmin)
 admin.add_view(InventarioAdmin)
 admin.add_view(PrestitoAdmin)
 admin.add_view(TrattamentoAdmin)
-admin.add_view(PreventivoAdmin)
+admin.add_view(PreventivoAdmin)      # Menu 1: Crea Intestazione
+admin.add_view(RigaPreventivoAdmin)  # Menu 2: Aggiungi Righe (INFALLIBILE)
 admin.add_view(ScadenzaAdmin)
 
 @app.on_event("startup")
