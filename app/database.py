@@ -2,15 +2,12 @@ import os
 from sqlmodel import create_engine, SQLModel
 
 # Recupera l'indirizzo del database da Railway
-# Il replace serve perché Railway usa "postgres://" ma Python vuole "postgresql://"
 db_url = os.environ.get("DATABASE_URL", "sqlite:///database.db")
 if db_url.startswith("postgres://"):
     db_url = db_url.replace("postgres://", "postgresql://", 1)
 
-# Crea il motore del database
+# Crea il motore del database (Sincrono e Stabile)
 engine = create_engine(db_url, echo=False)
 
 def init_db():
-    # Crea tutte le tabelle se non esistono
-
     SQLModel.metadata.create_all(engine)
