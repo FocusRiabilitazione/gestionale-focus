@@ -12,5 +12,4 @@ engine = create_engine(db_url, echo=False)
 
 def init_db():
     # Crea tutte le tabelle se non esistono
-
     SQLModel.metadata.create_all(engine)
