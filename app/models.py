@@ -64,9 +64,13 @@ class Prestito(SQLModel, table=True):
     data_scadenza: Optional[date] = None 
     restituito: bool = False
 
-# --- 4. LISTINO PREZZI ---
+# =========================================================
+# DA QUI IN GIÙ È LA NUOVA SEZIONE PREVENTIVI (RESETTATA)
+# =========================================================
+
+# --- 4. LISTINO PREZZI (Fondamentale per il menu a tendina) ---
 class Trattamento(SQLModel, table=True):
-    __tablename__ = "listino_prezzi_finale" 
+    __tablename__ = "listino_prezzi_finale" # Nome nuovo per resettare
     id: Optional[int] = Field(default=None, primary_key=True)
     nome: str
     prezzo_base: float = Field(default=0.0)
@@ -76,10 +80,11 @@ class Trattamento(SQLModel, table=True):
 
 # --- 5. PREVENTIVI (TESTATA) ---
 class Preventivo(SQLModel, table=True):
-    __tablename__ = "preventivi_testata_finale"
+    __tablename__ = "preventivi_testata_finale" # Nome nuovo per resettare
     id: Optional[int] = Field(default=None, primary_key=True)
     data_creazione: date = Field(default_factory=date.today)
     
+    # Collegamento al paziente esistente
     paziente_id: Optional[int] = Field(default=None, foreign_key="pazienti_visite_v2.id")
     paziente_rel: Optional[Paziente] = Relationship(back_populates="preventivi")
 
@@ -95,7 +100,7 @@ class Preventivo(SQLModel, table=True):
 
 # --- 6. PREVENTIVI (RIGHE) ---
 class RigaPreventivo(SQLModel, table=True):
-    __tablename__ = "preventivi_righe_finale"
+    __tablename__ = "preventivi_righe_finale" # Nome nuovo per resettare
     id: Optional[int] = Field(default=None, primary_key=True)
     
     preventivo_id: Optional[int] = Field(default=None, foreign_key="preventivi_testata_finale.id")
