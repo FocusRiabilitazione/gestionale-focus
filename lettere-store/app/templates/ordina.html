@@ -1,0 +1,446 @@
+{% extends "base.html" %}
+
+{% block title %}Ordina la tua lettera – {{ config.get('nome_negozio', 'Lettere del Cuore') }}{% endblock %}
+
+{% block head %}
+<script src="https://js.stripe.com/v3/"></script>
+<script src="https://www.paypal.com/sdk/js?client-id={{ paypal_client_id }}&currency=EUR"></script>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-12" x-data="ordineApp()" x-init="init()">
+
+  <!-- Titolo -->
+  <div class="text-center mb-10">
+    <h1 class="font-display text-4xl font-bold text-gray-800 mb-2">Crea la tua lettera</h1>
+    <p class="text-gray-500">Personalizza ogni dettaglio – ci vuole solo 2 minuti</p>
+  </div>
+
+  <!-- Step indicator -->
+  <div class="flex items-center justify-center mb-10 gap-0">
+    <template x-for="(label, i) in ['Personalizza','Spedizione','Pagamento']" :key="i">
+      <div class="flex items-center">
+        <div class="flex flex-col items-center">
+          <div :class="step >= i+1 ? 'bg-rose-500 text-white' : 'bg-gray-200 text-gray-400'"
+               class="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm transition-all">
+            <span x-show="step > i+1">✓</span>
+            <span x-show="step <= i+1" x-text="i+1"></span>
+          </div>
+          <span :class="step >= i+1 ? 'text-rose-500 font-semibold' : 'text-gray-400'"
+                class="text-xs mt-1 hidden md:block" x-text="label"></span>
+        </div>
+        <div x-show="i < 2" :class="step > i+1 ? 'bg-rose-400' : 'bg-gray-200'"
+             class="w-16 md:w-24 h-1 mx-1 transition-all rounded"></div>
+      </div>
+    </template>
+  </div>
+
+  <!-- STEP 1: PERSONALIZZA -->
+  <div x-show="step === 1" class="bg-white rounded-3xl shadow-lg p-8">
+    <h2 class="font-display text-2xl font-bold mb-6 text-gray-800">🔤 Personalizza la lettera</h2>
+
+    <div class="grid md:grid-cols-2 gap-6">
+
+      <!-- Lettera iniziale -->
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-2">Lettera iniziale *</label>
+        <select x-model="form.lettera_iniziale"
+                class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-rose-400 outline-none font-display text-xl font-bold text-rose-500">
+          <option value="">-- Scegli la lettera --</option>
+          {% for l in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' %}
+          <option value="{{ l }}">{{ l }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Nome personalizzato -->
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-2">Nome da personalizzare *</label>
+        <input type="text" x-model="form.nome_personalizzato" placeholder="Es: Greta, Matteo..."
+               class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-rose-400 outline-none font-script text-xl"
+               @input="aggiornaPreview">
+      </div>
+
+      <!-- Colore -->
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-2">Colore *</label>
+        <div class="flex flex-wrap gap-3">
+          {% for colore in colori %}
+          <button type="button"
+                  @click="selezionaColore('{{ colore.nome }}', '{{ colore.hex_code }}')"
+                  :class="form.colore_nome === '{{ colore.nome }}' ? 'ring-4 ring-rose-400 ring-offset-2 scale-110' : ''"
+                  class="w-9 h-9 rounded-full shadow border-2 border-white transition-all"
+                  style="background: {{ colore.hex_code }}"
+                  :title="'{{ colore.nome }}'">
+          </button>
+          {% endfor %}
+        </div>
+        <p class="text-xs text-gray-500 mt-2" x-text="form.colore_nome ? '✓ Colore scelto: ' + form.colore_nome : 'Nessun colore selezionato'"></p>
+      </div>
+
+      <!-- Dimensione -->
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-2">Dimensione *</label>
+        <div class="grid grid-cols-3 gap-2">
+          {% for dim, prezzo in prezzi.items() %}
+          <button type="button"
+                  @click="selezionaDimensione('{{ dim }}', {{ prezzo }})"
+                  :class="form.dimensione === '{{ dim }}' ? 'border-rose-500 bg-rose-50 text-rose-700' : 'border-gray-200 text-gray-600'"
+                  class="border-2 rounded-xl py-3 text-center transition-all">
+            <div class="font-bold text-lg">€{{ "%.0f"|format(prezzo) }}</div>
+            <div class="text-xs">{{ dim.split('(')[1].replace(')', '') if '(' in dim else dim }}</div>
+          </button>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Evento -->
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-2">Tipo di evento *</label>
+        <select x-model="form.tipo_evento"
+                class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-rose-400 outline-none">
+          <option value="Battesimo">🕊️ Battesimo</option>
+          <option value="Compleanno">🎂 Compleanno</option>
+          <option value="Nascita">👶 Nascita</option>
+          <option value="Prima Comunione">⛪ Prima Comunione</option>
+          <option value="Altro">✨ Altro</option>
+        </select>
+      </div>
+
+      <!-- Note -->
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-2">Note aggiuntive <span class="text-gray-400">(opzionale)</span></label>
+        <textarea x-model="form.note_cliente" rows="2" placeholder="Es: colore specifico, richieste particolari..."
+                  class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-rose-400 outline-none resize-none"></textarea>
+      </div>
+
+    </div>
+
+    <!-- ANTEPRIMA -->
+    <div class="mt-8 p-6 bg-gradient-to-br from-rose-50 to-violet-50 rounded-2xl text-center" x-show="form.lettera_iniziale || form.nome_personalizzato">
+      <p class="text-xs text-gray-400 uppercase tracking-widest mb-3">Anteprima</p>
+      <div class="flex items-center justify-center gap-4">
+        <div class="w-20 h-20 rounded-xl flex items-center justify-center text-5xl font-display font-bold shadow-inner border-2 border-white"
+             :style="'background:' + (form.colore_hex || '#F9A8D4') + '40; color:' + (form.colore_hex || '#f43f5e')">
+          <span x-text="form.lettera_iniziale || 'A'"></span>
+        </div>
+        <div class="text-left">
+          <p class="font-script text-3xl text-gray-700" x-text="form.nome_personalizzato || 'Nome'"></p>
+          <p class="text-xs text-gray-400" x-text="form.tipo_evento"></p>
+        </div>
+      </div>
+      <p class="mt-4 text-rose-600 font-bold text-xl" x-show="form.prezzo > 0">
+        Totale: €<span x-text="form.prezzo.toFixed(2)"></span>
+        <span class="text-sm text-gray-400 font-normal ml-1">+ spedizione</span>
+      </p>
+    </div>
+
+    <!-- Errori step 1 -->
+    <div x-show="errore" class="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm" x-text="errore"></div>
+
+    <button @click="proseguiStep1()"
+            class="mt-8 w-full btn-primary text-white font-bold py-4 rounded-2xl text-lg shadow-lg">
+      Continua → Dati di spedizione
+    </button>
+  </div>
+
+  <!-- STEP 2: SPEDIZIONE -->
+  <div x-show="step === 2" class="bg-white rounded-3xl shadow-lg p-8">
+    <h2 class="font-display text-2xl font-bold mb-6 text-gray-800">📦 Dati di spedizione</h2>
+
+    <div class="grid md:grid-cols-2 gap-5">
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-2">Nome *</label>
+        <input type="text" x-model="form.nome" placeholder="Il tuo nome"
+               class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-rose-400 outline-none">
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-2">Cognome *</label>
+        <input type="text" x-model="form.cognome" placeholder="Il tuo cognome"
+               class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-rose-400 outline-none">
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-2">Email *</label>
+        <input type="email" x-model="form.email" placeholder="email@esempio.it"
+               class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-rose-400 outline-none">
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-2">Telefono <span class="text-gray-400">(opzionale)</span></label>
+        <input type="tel" x-model="form.telefono" placeholder="+39 000 000 0000"
+               class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-rose-400 outline-none">
+      </div>
+      <div class="md:col-span-2">
+        <label class="block text-sm font-semibold text-gray-700 mb-2">Indirizzo *</label>
+        <input type="text" x-model="form.indirizzo" placeholder="Via Roma 1"
+               class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-rose-400 outline-none">
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-2">Città *</label>
+        <input type="text" x-model="form.citta" placeholder="Milano"
+               class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-rose-400 outline-none">
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">CAP *</label>
+          <input type="text" x-model="form.cap" placeholder="20100" maxlength="5"
+                 class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-rose-400 outline-none">
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">Provincia *</label>
+          <input type="text" x-model="form.provincia" placeholder="MI" maxlength="2"
+                 class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-rose-400 outline-none uppercase">
+        </div>
+      </div>
+    </div>
+
+    <!-- Riepilogo ordine -->
+    <div class="mt-6 p-5 bg-gray-50 rounded-2xl border border-gray-200">
+      <h3 class="font-bold text-gray-700 mb-3">Riepilogo ordine</h3>
+      <div class="flex justify-between text-sm text-gray-600 mb-1">
+        <span>Lettera <strong x-text="form.lettera_iniziale"></strong> + nome <strong x-text="form.nome_personalizzato"></strong></span>
+        <span>€<span x-text="form.prezzo.toFixed(2)"></span></span>
+      </div>
+      <div class="flex justify-between text-sm text-gray-600 mb-1">
+        <span>Spedizione</span>
+        <span>€{{ "%.2f"|format(config.get('spese_spedizione', '5.90') | float) }}</span>
+      </div>
+      <div class="border-t border-gray-300 mt-2 pt-2 flex justify-between font-bold text-gray-800">
+        <span>Totale</span>
+        <span class="text-rose-600">€<span x-text="(form.prezzo + {{ config.get('spese_spedizione', '5.90') | float }}).toFixed(2)"></span></span>
+      </div>
+    </div>
+
+    <div x-show="errore" class="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm" x-text="errore"></div>
+
+    <div class="flex gap-4 mt-8">
+      <button @click="step = 1" class="flex-1 border-2 border-gray-300 text-gray-600 font-bold py-4 rounded-2xl">← Indietro</button>
+      <button @click="proseguiStep2()" class="flex-2 w-full btn-primary text-white font-bold py-4 rounded-2xl text-lg shadow-lg">
+        Continua → Pagamento
+      </button>
+    </div>
+  </div>
+
+  <!-- STEP 3: PAGAMENTO -->
+  <div x-show="step === 3" class="bg-white rounded-3xl shadow-lg p-8">
+    <h2 class="font-display text-2xl font-bold mb-6 text-gray-800">💳 Pagamento</h2>
+
+    <!-- Riepilogo -->
+    <div class="p-5 bg-rose-50 rounded-2xl border border-rose-200 mb-8">
+      <div class="flex items-center gap-4">
+        <div class="w-14 h-14 rounded-xl flex items-center justify-center text-3xl font-display font-bold shadow"
+             :style="'background:' + (form.colore_hex || '#F9A8D4') + '60'">
+          <span x-text="form.lettera_iniziale"></span>
+        </div>
+        <div>
+          <p class="font-bold text-gray-800" x-text="'Lettera ' + form.lettera_iniziale + ' – ' + form.nome_personalizzato"></p>
+          <p class="text-sm text-gray-500" x-text="form.dimensione + ' · ' + form.tipo_evento"></p>
+          <p class="text-sm text-gray-500" x-text="form.colore_nome ? 'Colore: ' + form.colore_nome : ''"></p>
+        </div>
+        <div class="ml-auto text-right">
+          <p class="text-2xl font-bold text-rose-600">€<span x-text="(form.prezzo + {{ config.get('spese_spedizione', '5.90') | float }}).toFixed(2)"></span></p>
+          <p class="text-xs text-gray-400">spedizione inclusa</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading stato -->
+    <div x-show="caricamento" class="text-center py-6">
+      <div class="inline-block w-8 h-8 border-4 border-rose-400 border-t-transparent rounded-full animate-spin"></div>
+      <p class="text-gray-500 mt-3">Preparazione pagamento...</p>
+    </div>
+
+    <!-- Scelta metodo -->
+    <div x-show="!caricamento && !ordineCreato">
+      <p class="font-semibold text-gray-700 mb-4">Scegli il metodo di pagamento:</p>
+
+      <!-- Stripe -->
+      <button @click="pagaConStripe()"
+              class="w-full flex items-center justify-between p-5 border-2 border-gray-200 hover:border-violet-400 rounded-2xl mb-4 transition-all group">
+        <div class="flex items-center gap-4">
+          <div class="w-12 h-12 bg-violet-50 rounded-xl flex items-center justify-center">
+            <i class="fas fa-credit-card text-violet-500 text-xl"></i>
+          </div>
+          <div class="text-left">
+            <p class="font-bold text-gray-800">Carta di credito / debito</p>
+            <p class="text-xs text-gray-500">Visa, Mastercard, American Express – powered by Stripe</p>
+          </div>
+        </div>
+        <i class="fas fa-chevron-right text-gray-400 group-hover:text-violet-500 transition"></i>
+      </button>
+
+      <!-- PayPal -->
+      <div id="paypal-button-container" class="mt-4"></div>
+    </div>
+
+    <div x-show="errore" class="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm" x-text="errore"></div>
+
+    <button @click="step = 2; errore=''" x-show="!caricamento" class="mt-6 text-gray-400 hover:text-gray-600 text-sm w-full text-center">← Torna ai dati di spedizione</button>
+  </div>
+
+</div>
+
+<!-- Alpine.js -->
+<script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+<script>
+function ordineApp() {
+  return {
+    step: 1,
+    errore: '',
+    caricamento: false,
+    ordineCreato: false,
+    ordineId: null,
+    codicOrdine: '',
+    form: {
+      lettera_iniziale: '',
+      nome_personalizzato: '',
+      colore_nome: '',
+      colore_hex: '',
+      dimensione: 'Media (20cm)',
+      prezzo: 30.0,
+      tipo_evento: 'Battesimo',
+      note_cliente: '',
+      nome: '',
+      cognome: '',
+      email: '',
+      telefono: '',
+      indirizzo: '',
+      citta: '',
+      cap: '',
+      provincia: '',
+    },
+
+    init() {
+      // Preleva dimensione da URL se presente
+      const params = new URLSearchParams(window.location.search);
+      const dim = params.get('dimensione');
+      if (dim) {
+        const prezzi = {{ prezzi | tojson }};
+        if (prezzi[dim]) {
+          this.form.dimensione = dim;
+          this.form.prezzo = prezzi[dim];
+        }
+      }
+    },
+
+    selezionaColore(nome, hex) {
+      this.form.colore_nome = nome;
+      this.form.colore_hex = hex;
+    },
+
+    selezionaDimensione(dim, prezzo) {
+      this.form.dimensione = dim;
+      this.form.prezzo = prezzo;
+    },
+
+    aggiornaPreview() {},
+
+    proseguiStep1() {
+      this.errore = '';
+      if (!this.form.lettera_iniziale) { this.errore = 'Scegli la lettera iniziale'; return; }
+      if (!this.form.nome_personalizzato.trim()) { this.errore = 'Inserisci il nome da personalizzare'; return; }
+      if (!this.form.colore_nome) { this.errore = 'Seleziona un colore'; return; }
+      this.step = 2;
+      window.scrollTo(0, 0);
+    },
+
+    proseguiStep2() {
+      this.errore = '';
+      const f = this.form;
+      if (!f.nome.trim()) { this.errore = 'Inserisci il tuo nome'; return; }
+      if (!f.cognome.trim()) { this.errore = 'Inserisci il tuo cognome'; return; }
+      if (!f.email.trim() || !f.email.includes('@')) { this.errore = 'Email non valida'; return; }
+      if (!f.indirizzo.trim()) { this.errore = 'Inserisci l\'indirizzo di spedizione'; return; }
+      if (!f.citta.trim()) { this.errore = 'Inserisci la città'; return; }
+      if (!f.cap.trim() || f.cap.length !== 5) { this.errore = 'CAP non valido (5 cifre)'; return; }
+      if (!f.provincia.trim()) { this.errore = 'Inserisci la provincia (2 lettere)'; return; }
+      this.step = 3;
+      window.scrollTo(0, 0);
+      this.$nextTick(() => this.setupPayPal());
+    },
+
+    async creaOrdineBackend(metodo) {
+      const resp = await fetch('/checkout/crea-ordine', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({...this.form, metodo_pagamento: metodo}),
+      });
+      if (!resp.ok) throw new Error('Errore nella creazione dell\'ordine');
+      return resp.json();
+    },
+
+    async pagaConStripe() {
+      this.caricamento = true;
+      this.errore = '';
+      try {
+        const ordine = await this.creaOrdineBackend('Carta di credito');
+        this.ordineId = ordine.ordine_id;
+
+        const sessResp = await fetch('/checkout/stripe/sessione', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ordine_id: this.ordineId}),
+        });
+        const sess = await sessResp.json();
+        window.location.href = sess.checkout_url;
+      } catch (e) {
+        this.errore = 'Si è verificato un errore. Riprova o contattaci.';
+        this.caricamento = false;
+      }
+    },
+
+    async setupPayPal() {
+      if (typeof paypal === 'undefined') return;
+      const container = document.getElementById('paypal-button-container');
+      if (!container || container.children.length > 0) return;
+
+      paypal.Buttons({
+        createOrder: async () => {
+          this.caricamento = true;
+          this.errore = '';
+          try {
+            const ordine = await this.creaOrdineBackend('PayPal');
+            this.ordineId = ordine.ordine_id;
+            this.codicOrdine = ordine.codice;
+
+            const ppResp = await fetch('/checkout/paypal/crea-ordine', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({ordine_id: this.ordineId}),
+            });
+            const pp = await ppResp.json();
+            this.caricamento = false;
+            return pp.paypal_order_id;
+          } catch(e) {
+            this.errore = 'Errore PayPal. Riprova.';
+            this.caricamento = false;
+            throw e;
+          }
+        },
+        onApprove: async (data) => {
+          this.caricamento = true;
+          try {
+            const resp = await fetch('/checkout/paypal/cattura', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({paypal_order_id: data.orderID, ordine_id: this.ordineId}),
+            });
+            const result = await resp.json();
+            if (result.success) {
+              window.location.href = '/ordine/successo/' + result.codice;
+            }
+          } catch(e) {
+            this.errore = 'Errore nella conferma del pagamento PayPal. Contattaci.';
+            this.caricamento = false;
+          }
+        },
+        onError: (err) => {
+          this.errore = 'Pagamento PayPal annullato o non riuscito.';
+          this.caricamento = false;
+        },
+        style: { layout: 'vertical', color: 'gold', shape: 'pill', label: 'pay' }
+      }).render('#paypal-button-container');
+    },
+  }
+}
+</script>
+{% endblock %}

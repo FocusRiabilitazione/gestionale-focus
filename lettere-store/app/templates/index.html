@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% block title %}{{ config.get('nome_negozio', 'Lettere del Cuore') }} – Lettere personalizzate per bambini{% endblock %}
+
+{% block content %}
+
+<!-- HERO -->
+<section class="gradient-hero py-20 px-4">
+  <div class="max-w-6xl mx-auto flex flex-col md:flex-row items-center gap-12">
+    <div class="flex-1">
+      <p class="text-rose-500 font-semibold tracking-widest text-sm uppercase mb-3">✨ Fatto a mano con amore</p>
+      <h1 class="font-display text-5xl md:text-6xl font-bold text-gray-800 leading-tight mb-4">
+        Lettere <span class="text-rose-500">Personalizzate</span><br>per Momenti Speciali
+      </h1>
+      <p class="text-gray-600 text-lg mb-8 max-w-lg">
+        Lettere decorative in PLA stampate in 3D con il nome del tuo bambino.
+        Perfette per battesimi, compleanni, nascite e prime comunioni.
+      </p>
+      <div class="flex flex-wrap gap-4">
+        <a href="/ordina"
+           class="btn-primary text-white font-bold px-8 py-4 rounded-full text-lg shadow-lg inline-block">
+          🎀 Crea la tua lettera
+        </a>
+        <a href="#come-funziona"
+           class="border-2 border-rose-300 text-rose-600 font-bold px-8 py-4 rounded-full text-lg hover:bg-rose-50 transition inline-block">
+          Scopri di più
+        </a>
+      </div>
+      <div class="flex gap-6 mt-10 text-sm text-gray-500">
+        <div class="flex items-center gap-2"><i class="fas fa-check-circle text-green-400"></i> Stampa 3D PLA</div>
+        <div class="flex items-center gap-2"><i class="fas fa-check-circle text-green-400"></i> Spedizione in tutta Italia</div>
+        <div class="flex items-center gap-2"><i class="fas fa-check-circle text-green-400"></i> 100% personalizzata</div>
+      </div>
+    </div>
+    <div class="flex-1 flex justify-center">
+      <div class="relative">
+        <div class="w-80 h-80 rounded-3xl overflow-hidden shadow-2xl">
+          <img src="/static/img/hero.jpg" alt="Lettera personalizzata battesimo"
+               class="w-full h-full object-cover"
+               onerror="this.style.display='none'; this.parentElement.innerHTML=heroPlaceholder()">
+          <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-rose-100 to-violet-100"
+               id="hero-placeholder" style="display:none">
+            <span class="font-script text-9xl text-violet-400">G</span>
+          </div>
+        </div>
+        <!-- Badge flottante -->
+        <div class="absolute -bottom-4 -left-4 bg-white rounded-2xl shadow-lg px-4 py-3 flex items-center gap-3">
+          <span class="text-2xl">🎀</span>
+          <div>
+            <p class="font-bold text-gray-800 text-sm">Greta</p>
+            <p class="text-xs text-gray-500">Battesimo – Lettera G</p>
+          </div>
+        </div>
+        <div class="absolute -top-4 -right-4 bg-white rounded-2xl shadow-lg px-4 py-3 text-center">
+          <p class="text-xs text-gray-500">da soli</p>
+          <p class="font-display font-bold text-rose-500 text-xl">€22</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  // Mostra placeholder se l'immagine non esiste
+  const heroImg = document.querySelector('[alt="Lettera personalizzata battesimo"]');
+  if (heroImg) {
+    heroImg.onerror = function() {
+      this.style.display = 'none';
+      document.getElementById('hero-placeholder').style.display = 'flex';
+    };
+  }
+</script>
+
+<!-- PREZZI -->
+<section class="py-16 px-4 bg-white" id="prezzi">
+  <div class="max-w-6xl mx-auto text-center">
+    <p class="text-rose-500 font-semibold tracking-widest text-sm uppercase mb-2">Quanto costa?</p>
+    <h2 class="font-display text-4xl font-bold text-gray-800 mb-4">Scegli la tua dimensione</h2>
+    <p class="text-gray-500 mb-12">Ogni lettera include la lettera iniziale + targhetta col nome personalizzato</p>
+    <div class="grid md:grid-cols-3 gap-6">
+      {% for dimensione, prezzo in prezzi.items() %}
+      <div class="card-hover border-2 {% if loop.index == 2 %}border-rose-400 bg-rose-50{% else %}border-gray-200 bg-white{% endif %} rounded-3xl p-8 relative">
+        {% if loop.index == 2 %}
+        <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-rose-500 text-white text-xs font-bold px-4 py-1 rounded-full">⭐ Più venduta</div>
+        {% endif %}
+        <div class="text-5xl mb-4">
+          {% if loop.index == 1 %}🔤{% elif loop.index == 2 %}✨{% else %}👑{% endif %}
+        </div>
+        <h3 class="font-display text-xl font-bold text-gray-800 mb-1">{{ dimensione }}</h3>
+        <p class="text-gray-500 text-sm mb-4">Lettera iniziale + nome in corsivo</p>
+        <p class="font-display text-4xl font-bold text-rose-500">€{{ "%.0f"|format(prezzo) }}</p>
+        {% set sped = config.get('spese_spedizione', '5.90') | float %}
+        {% if sped == 0 %}
+        <p class="text-xs text-green-500 mt-1">✓ Spedizione gratuita</p>
+        {% else %}
+        <p class="text-xs text-gray-400 mt-1">+ €{{ "%.2f"|format(sped) }} spedizione</p>
+        {% endif %}
+        <a href="/ordina?dimensione={{ dimensione | urlencode }}"
+           class="mt-6 block w-full {% if loop.index == 2 %}btn-primary{% else %}border-2 border-rose-300 text-rose-600 hover:bg-rose-50{% endif %} text-white font-bold py-3 rounded-full text-center transition">
+          Scegli questa
+        </a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- COME FUNZIONA -->
+<section class="py-16 px-4 bg-gradient-to-br from-violet-50 to-rose-50" id="come-funziona">
+  <div class="max-w-5xl mx-auto text-center">
+    <p class="text-violet-500 font-semibold tracking-widest text-sm uppercase mb-2">Semplice e veloce</p>
+    <h2 class="font-display text-4xl font-bold text-gray-800 mb-12">Come funziona</h2>
+    <div class="grid md:grid-cols-4 gap-8">
+      <div class="flex flex-col items-center">
+        <div class="w-16 h-16 rounded-full bg-rose-100 flex items-center justify-center text-2xl mb-4 shadow">🔤</div>
+        <h3 class="font-bold text-gray-800 mb-1">1. Scegli la lettera</h3>
+        <p class="text-gray-500 text-sm">Scegli la lettera iniziale e il colore che preferisci</p>
+      </div>
+      <div class="flex flex-col items-center">
+        <div class="w-16 h-16 rounded-full bg-violet-100 flex items-center justify-center text-2xl mb-4 shadow">✍️</div>
+        <h3 class="font-bold text-gray-800 mb-1">2. Inserisci il nome</h3>
+        <p class="text-gray-500 text-sm">Scrivi il nome da personalizzare e scegli l'evento</p>
+      </div>
+      <div class="flex flex-col items-center">
+        <div class="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center text-2xl mb-4 shadow">💳</div>
+        <h3 class="font-bold text-gray-800 mb-1">3. Paga in sicurezza</h3>
+        <p class="text-gray-500 text-sm">Carta di credito con Stripe o PayPal – 100% sicuro</p>
+      </div>
+      <div class="flex flex-col items-center">
+        <div class="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center text-2xl mb-4 shadow">📦</div>
+        <h3 class="font-bold text-gray-800 mb-1">4. Ricevi a casa</h3>
+        <p class="text-gray-500 text-sm">Consegniamo in {{ config.get('tempi_consegna','7-10 giorni') }}</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- COLORI DISPONIBILI -->
+{% if colori %}
+<section class="py-16 px-4 bg-white">
+  <div class="max-w-4xl mx-auto text-center">
+    <p class="text-rose-500 font-semibold tracking-widest text-sm uppercase mb-2">Personalizza</p>
+    <h2 class="font-display text-4xl font-bold text-gray-800 mb-3">Colori disponibili</h2>
+    <p class="text-gray-500 mb-10">Scegli il colore che meglio si adatta al tuo evento</p>
+    <div class="flex flex-wrap justify-center gap-4">
+      {% for colore in colori %}
+      <div class="flex flex-col items-center gap-2">
+        <div class="w-12 h-12 rounded-full shadow-md border-2 border-white ring-2 ring-gray-200"
+             style="background:{{ colore.hex_code }}"></div>
+        <span class="text-xs text-gray-600 font-medium">{{ colore.nome }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<!-- EVENTI -->
+<section class="py-16 px-4 bg-gray-50">
+  <div class="max-w-5xl mx-auto text-center">
+    <p class="text-rose-500 font-semibold tracking-widest text-sm uppercase mb-2">Per ogni occasione</p>
+    <h2 class="font-display text-4xl font-bold text-gray-800 mb-12">Ideale per questi eventi</h2>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+      <div class="bg-white rounded-3xl p-6 shadow-sm card-hover text-center">
+        <div class="text-4xl mb-3">🕊️</div>
+        <h3 class="font-bold text-gray-800">Battesimo</h3>
+        <p class="text-gray-500 text-xs mt-1">Un ricordo eterno per il giorno più speciale</p>
+      </div>
+      <div class="bg-white rounded-3xl p-6 shadow-sm card-hover text-center">
+        <div class="text-4xl mb-3">🎂</div>
+        <h3 class="font-bold text-gray-800">Compleanno</h3>
+        <p class="text-gray-500 text-xs mt-1">Il regalo perfetto che dura per sempre</p>
+      </div>
+      <div class="bg-white rounded-3xl p-6 shadow-sm card-hover text-center">
+        <div class="text-4xl mb-3">👶</div>
+        <h3 class="font-bold text-gray-800">Nascita</h3>
+        <p class="text-gray-500 text-xs mt-1">Decora la cameretta con il nome del bimbo</p>
+      </div>
+      <div class="bg-white rounded-3xl p-6 shadow-sm card-hover text-center">
+        <div class="text-4xl mb-3">⛪</div>
+        <h3 class="font-bold text-gray-800">Prima Comunione</h3>
+        <p class="text-gray-500 text-xs mt-1">Celebra questo momento unico con stile</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA FINALE -->
+<section class="py-20 px-4 gradient-hero text-center">
+  <h2 class="font-display text-4xl font-bold text-gray-800 mb-4">Pronta a sorprendere?</h2>
+  <p class="text-gray-600 text-lg mb-8">Crea subito la tua lettera personalizzata. Ci vuole solo 2 minuti!</p>
+  <a href="/ordina"
+     class="btn-primary text-white font-bold px-10 py-5 rounded-full text-xl shadow-xl inline-block">
+    🎀 Ordina la tua lettera
+  </a>
+  {% set sped = config.get('spese_spedizione', '5.90') | float %}
+  {% if sped == 0 %}
+  <p class="text-green-600 mt-4 font-medium">🚚 Spedizione GRATUITA!</p>
+  {% else %}
+  <p class="text-gray-500 mt-4 text-sm">Spedizione €{{ "%.2f"|format(sped) }} · Consegna in {{ config.get('tempi_consegna','7-10 giorni') }}</p>
+  {% endif %}
+</section>
+
+{% endblock %}
