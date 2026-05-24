@@ -1,0 +1,18 @@
+/* Animazioni aggiuntive */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in-up { animation: fadeInUp .5s ease forwards; }
+
+/* Pulse leggero per i badge */
+@keyframes softPulse {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.04); }
+}
+.soft-pulse { animation: softPulse 2s infinite; }
+
+/* Input focus elegante */
+input:focus, select:focus, textarea:focus {
+  box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.15);
+}
