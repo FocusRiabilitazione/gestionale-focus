@@ -1,17 +1,18 @@
 import os
+import json
 import stripe
 import httpx
 import base64
-import json
 from datetime import datetime
-from fastapi import APIRouter, Request, Depends, HTTPException, Form
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi import APIRouter, Request, Depends, HTTPException
+from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, select
 from pydantic import BaseModel
+from typing import List
 
 from ..database import get_session
-from ..models import Ordine, ColoreDisponibile, StatoOrdine, MetodoPagamento, TipoEvento, Dimensione
+from ..models import Ordine, StatoOrdine, MetodoPagamento, TipoEvento, Dimensione
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -43,7 +44,14 @@ async def _paypal_access_token() -> str:
         return resp.json()["access_token"]
 
 
-# ─── CREA ORDINE (form step 1→2) ─────────────────────────────────────────────
+# ─── CREA ORDINE ─────────────────────────────────────────────────────────────
+
+class ElementoScelto(BaseModel):
+    id: int
+    nome: str
+    emoji: str
+    prezzo: float
+
 
 class OrdineData(BaseModel):
     nome: str
@@ -57,6 +65,11 @@ class OrdineData(BaseModel):
     dimensione: str
     tipo_evento: str
     note_cliente: str = ""
+    # Tema opzionale
+    tema_nome: str = ""
+    tema_emoji: str = ""
+    elementi_scelti: List[ElementoScelto] = []
+    # Spedizione
     indirizzo: str
     citta: str
     cap: str
@@ -66,7 +79,14 @@ class OrdineData(BaseModel):
 
 @router.post("/checkout/crea-ordine")
 async def crea_ordine(data: OrdineData, session: Session = Depends(get_session)):
-    prezzo = PREZZI.get(data.dimensione, 30.0)
+    prezzo_base = PREZZI.get(data.dimensione, 30.0)
+    prezzo_elementi = sum(e.prezzo for e in data.elementi_scelti)
+    totale = prezzo_base + prezzo_elementi
+
+    elementi_json = json.dumps(
+        [{"nome": e.nome, "emoji": e.emoji, "prezzo": e.prezzo} for e in data.elementi_scelti],
+        ensure_ascii=False,
+    ) if data.elementi_scelti else None
 
     ordine = Ordine(
         nome=data.nome,
@@ -80,12 +100,16 @@ async def crea_ordine(data: OrdineData, session: Session = Depends(get_session))
         dimensione=Dimensione(data.dimensione),
         tipo_evento=TipoEvento(data.tipo_evento),
         note_cliente=data.note_cliente,
+        tema_nome=data.tema_nome or None,
+        tema_emoji=data.tema_emoji or None,
+        elementi_scelti=elementi_json,
+        prezzo_elementi=prezzo_elementi,
         indirizzo=data.indirizzo,
         citta=data.citta,
         cap=data.cap,
         provincia=data.provincia,
-        prezzo_unitario=prezzo,
-        totale=prezzo,
+        prezzo_unitario=prezzo_base,
+        totale=totale,
         metodo_pagamento=MetodoPagamento(data.metodo_pagamento),
     )
     session.add(ordine)
@@ -107,6 +131,15 @@ async def crea_sessione_stripe(request: Request, session: Session = Depends(get_
         raise HTTPException(status_code=404, detail="Ordine non trovato")
 
     base_url = os.getenv("BASE_URL", str(request.base_url).rstrip("/"))
+
+    desc_parts = [f"{ordine.dimensione} · {ordine.tipo_evento}"]
+    if ordine.tema_nome:
+        desc_parts.append(f"Tema: {ordine.tema_emoji} {ordine.tema_nome}")
+    if ordine.elementi_scelti:
+        elementi = json.loads(ordine.elementi_scelti)
+        nomi = ", ".join(f"{e['emoji']} {e['nome']}" for e in elementi)
+        desc_parts.append(f"Decorazioni: {nomi}")
+
     checkout_session = stripe.checkout.Session.create(
         payment_method_types=["card"],
         line_items=[{
@@ -114,7 +147,7 @@ async def crea_sessione_stripe(request: Request, session: Session = Depends(get_
                 "currency": "eur",
                 "product_data": {
                     "name": f"Lettera '{ordine.lettera_iniziale}' con nome '{ordine.nome_personalizzato}'",
-                    "description": f"{ordine.dimensione} – {ordine.tipo_evento}",
+                    "description": " · ".join(desc_parts),
                 },
                 "unit_amount": int(ordine.totale * 100),
             },
@@ -223,7 +256,6 @@ def pagina_successo(codice: str, request: Request, session: Session = Depends(ge
     if not ordine:
         raise HTTPException(status_code=404, detail="Ordine non trovato")
 
-    # Segna come pagato se arriva da Stripe redirect (verifica session_id opzionale)
     if not ordine.pagamento_completato:
         session_id = request.query_params.get("session_id")
         if session_id:
@@ -240,6 +272,14 @@ def pagina_successo(codice: str, request: Request, session: Session = Depends(ge
             except Exception:
                 pass
 
+    elementi = []
+    if ordine.elementi_scelti:
+        try:
+            elementi = json.loads(ordine.elementi_scelti)
+        except Exception:
+            pass
+
     return templates.TemplateResponse(request, "conferma.html", {
         "ordine": ordine,
+        "elementi": elementi,
     })

@@ -53,6 +53,37 @@ class ConfigSito(SQLModel, table=True):
     descrizione: Optional[str] = None
 
 
+class Tema(SQLModel, table=True):
+    __tablename__ = "temi_lettere"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    nome: str
+    emoji: str = Field(default="✨")
+    descrizione: Optional[str] = None
+    disponibile: bool = Field(default=True)
+    ordine_visualizzazione: int = Field(default=0)
+
+    elementi: List["ElementoTema"] = Relationship(back_populates="tema")
+
+    def __str__(self):
+        return f"{self.emoji} {self.nome}"
+
+
+class ElementoTema(SQLModel, table=True):
+    __tablename__ = "elementi_tema_lettere"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tema_id: Optional[int] = Field(default=None, foreign_key="temi_lettere.id")
+    tema: Optional[Tema] = Relationship(back_populates="elementi")
+
+    nome: str
+    emoji: str = Field(default="✨")
+    descrizione: Optional[str] = None
+    prezzo_aggiuntivo: float = Field(default=5.0)
+    disponibile: bool = Field(default=True)
+
+    def __str__(self):
+        return f"{self.emoji} {self.nome} (+€{self.prezzo_aggiuntivo:.0f})"
+
+
 class Ordine(SQLModel, table=True):
     __tablename__ = "ordini_lettere"
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -72,6 +103,12 @@ class Ordine(SQLModel, table=True):
     dimensione: Dimensione = Field(default=Dimensione.MEDIA)
     tipo_evento: TipoEvento = Field(default=TipoEvento.BATTESIMO)
     note_cliente: Optional[str] = None
+
+    # Tema e decorazioni (opzionale)
+    tema_nome: Optional[str] = None
+    tema_emoji: Optional[str] = None
+    elementi_scelti: Optional[str] = None   # JSON: [{"nome":"Leone","emoji":"🦁","prezzo":5}]
+    prezzo_elementi: float = Field(default=0.0)
 
     # Spedizione
     indirizzo: str

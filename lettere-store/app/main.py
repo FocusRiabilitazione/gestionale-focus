@@ -11,7 +11,7 @@ from markupsafe import Markup
 from datetime import datetime
 
 from .database import engine, init_db
-from .models import Ordine, ColoreDisponibile, ConfigSito, StatoOrdine
+from .models import Ordine, ColoreDisponibile, ConfigSito, StatoOrdine, Tema, ElementoTema
 from .routes.shop import router as shop_router
 from .routes.checkout import router as checkout_router
 
@@ -36,8 +36,8 @@ class OrdineAdmin(ModelView, model=Ordine):
         Ordine.cognome,
         Ordine.lettera_iniziale,
         Ordine.nome_personalizzato,
+        Ordine.tema_nome,
         Ordine.dimensione,
-        Ordine.tipo_evento,
         Ordine.totale,
         Ordine.stato,
         Ordine.pagamento_completato,
@@ -58,11 +58,17 @@ class OrdineAdmin(ModelView, model=Ordine):
         style = colori.get(model.stato, "background:#e5e7eb;color:#000")
         return Markup(f'<span style="padding:3px 10px;border-radius:999px;font-size:0.8em;{style}">{model.stato}</span>')
 
+    def tema_cell(model, attribute):
+        if model.tema_nome:
+            return Markup(f'<span style="background:#ede9fe;color:#6d28d9;padding:2px 8px;border-radius:999px;font-size:.8em">{model.tema_emoji or ""} {model.tema_nome}</span>')
+        return Markup('<span style="color:#9ca3af;font-size:.8em">–</span>')
+
     def pagato_icona(model, attribute):
         return Markup("✅" if model.pagamento_completato else "⏳")
 
     column_formatters = {
         Ordine.stato: stato_badge,
+        Ordine.tema_nome: tema_cell,
         Ordine.pagamento_completato: pagato_icona,
     }
     form_columns = [
@@ -77,6 +83,10 @@ class OrdineAdmin(ModelView, model=Ordine):
         Ordine.colore_nome,
         Ordine.dimensione,
         Ordine.tipo_evento,
+        Ordine.tema_nome,
+        Ordine.tema_emoji,
+        Ordine.elementi_scelti,
+        Ordine.prezzo_elementi,
         Ordine.indirizzo,
         Ordine.citta,
         Ordine.cap,
@@ -103,6 +113,35 @@ class ColoreAdmin(ModelView, model=ColoreDisponibile):
     form_columns = [ColoreDisponibile.nome, ColoreDisponibile.hex_code, ColoreDisponibile.disponibile, ColoreDisponibile.ordine_visualizzazione]
 
 
+class TemaAdmin(ModelView, model=Tema):
+    name = "Tema"
+    name_plural = "Temi"
+    icon = "fa-solid fa-masks-theater"
+
+    def tema_preview(model, attribute):
+        return Markup(f'<span style="font-size:1.4em">{model.emoji}</span> <strong>{model.nome}</strong>')
+
+    column_formatters = {Tema.nome: tema_preview}
+    column_list = [Tema.nome, Tema.emoji, Tema.descrizione, Tema.disponibile, Tema.ordine_visualizzazione]
+    form_columns = [Tema.nome, Tema.emoji, Tema.descrizione, Tema.disponibile, Tema.ordine_visualizzazione]
+
+
+class ElementoTemaAdmin(ModelView, model=ElementoTema):
+    name = "Decorazione"
+    name_plural = "Decorazioni Tema"
+    icon = "fa-solid fa-star"
+
+    def elem_preview(model, attribute):
+        return Markup(f'<span style="font-size:1.2em">{model.emoji}</span> {model.nome}')
+
+    def prezzo_badge(model, attribute):
+        return Markup(f'<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:999px;font-size:.85em">+€{model.prezzo_aggiuntivo:.0f}</span>')
+
+    column_formatters = {ElementoTema.nome: elem_preview, ElementoTema.prezzo_aggiuntivo: prezzo_badge}
+    column_list = [ElementoTema.tema, ElementoTema.nome, ElementoTema.emoji, ElementoTema.prezzo_aggiuntivo, ElementoTema.disponibile]
+    form_columns = [ElementoTema.tema, ElementoTema.nome, ElementoTema.emoji, ElementoTema.descrizione, ElementoTema.prezzo_aggiuntivo, ElementoTema.disponibile]
+
+
 class ConfigAdmin(ModelView, model=ConfigSito):
     name = "Impostazione"
     name_plural = "Impostazioni Sito"
@@ -114,6 +153,8 @@ class ConfigAdmin(ModelView, model=ConfigSito):
 admin = Admin(app, engine, title="🎀 Lettere Store – Admin")
 admin.add_view(OrdineAdmin)
 admin.add_view(ColoreAdmin)
+admin.add_view(TemaAdmin)
+admin.add_view(ElementoTemaAdmin)
 admin.add_view(ConfigAdmin)
 
 
@@ -129,31 +170,58 @@ def _seed_dati_iniziali():
     with Session(engine) as session:
         # Colori di default
         if not session.exec(select(ColoreDisponibile)).first():
-            colori = [
-                ColoreDisponibile(nome="Bianco", hex_code="#FFFFFF", ordine_visualizzazione=1),
-                ColoreDisponibile(nome="Rosa", hex_code="#F9A8D4", ordine_visualizzazione=2),
-                ColoreDisponibile(nome="Lilla", hex_code="#C4B5FD", ordine_visualizzazione=3),
-                ColoreDisponibile(nome="Azzurro", hex_code="#93C5FD", ordine_visualizzazione=4),
-                ColoreDisponibile(nome="Menta", hex_code="#6EE7B7", ordine_visualizzazione=5),
-                ColoreDisponibile(nome="Giallo", hex_code="#FDE68A", ordine_visualizzazione=6),
-                ColoreDisponibile(nome="Oro", hex_code="#D4AF37", ordine_visualizzazione=7),
-                ColoreDisponibile(nome="Argento", hex_code="#C0C0C0", ordine_visualizzazione=8),
+            for i, (nome, hex_code) in enumerate([
+                ("Bianco", "#FFFFFF"), ("Rosa", "#F9A8D4"), ("Lilla", "#C4B5FD"),
+                ("Azzurro", "#93C5FD"), ("Menta", "#6EE7B7"), ("Giallo", "#FDE68A"),
+                ("Oro", "#D4AF37"), ("Argento", "#C0C0C0"),
+            ], start=1):
+                session.add(ColoreDisponibile(nome=nome, hex_code=hex_code, ordine_visualizzazione=i))
+
+        # Temi di default
+        if not session.exec(select(Tema)).first():
+            temi_default = [
+                ("Safari", "🦁", "Animali della savana", 1, [
+                    ("Leone", "🦁", 5.0), ("Elefante", "🐘", 5.0),
+                    ("Giraffa", "🦒", 5.0), ("Zebra", "🦓", 5.0),
+                ]),
+                ("Principessa", "👸", "Fate, castelli e unicorni", 2, [
+                    ("Corona", "👑", 5.0), ("Castello", "🏰", 5.0),
+                    ("Unicorno", "🦄", 5.0), ("Fata", "🧚", 5.0),
+                ]),
+                ("Spazio", "🚀", "Pianeti, stelle e razzi", 3, [
+                    ("Razzo", "🚀", 5.0), ("Luna", "🌙", 5.0),
+                    ("Stella", "⭐", 5.0), ("Pianeta", "🪐", 5.0),
+                ]),
+                ("Mare", "🌊", "Pesci, conchiglie e delfini", 4, [
+                    ("Delfino", "🐬", 5.0), ("Conchiglia", "🐚", 5.0),
+                    ("Pesce", "🐠", 5.0), ("Polpo", "🐙", 5.0),
+                ]),
+                ("Dinosauri", "🦕", "Triceratopo, T-Rex e amici", 5, [
+                    ("T-Rex", "🦖", 5.0), ("Diplodoco", "🦕", 5.0),
+                    ("Pterodattilo", "🦅", 5.0),
+                ]),
+                ("Fiori", "🌸", "Rose, margherite e farfalle", 6, [
+                    ("Rosa", "🌹", 5.0), ("Margherita", "🌼", 5.0),
+                    ("Farfalla", "🦋", 5.0), ("Coccinella", "🐞", 5.0),
+                ]),
             ]
-            for c in colori:
-                session.add(c)
+            for nome, emoji, desc, ordine, elementi in temi_default:
+                tema = Tema(nome=nome, emoji=emoji, descrizione=desc, ordine_visualizzazione=ordine)
+                session.add(tema)
+                session.flush()
+                for e_nome, e_emoji, e_prezzo in elementi:
+                    session.add(ElementoTema(tema_id=tema.id, nome=e_nome, emoji=e_emoji, prezzo_aggiuntivo=e_prezzo))
 
         # Config di default
-        config_default = [
+        for chiave, valore, desc in [
             ("nome_negozio", "Lettere del Cuore", "Nome visualizzato nel sito"),
             ("telefono", "+39 000 000 0000", "Numero WhatsApp/telefono"),
             ("email_contatto", "info@letteredelcuore.it", "Email pubblica"),
             ("instagram", "", "URL profilo Instagram"),
             ("tempi_consegna", "7-10 giorni lavorativi", "Tempi di consegna indicativi"),
             ("spese_spedizione", "5.90", "Spese di spedizione in euro (0 = gratuita)"),
-        ]
-        for chiave, valore, desc in config_default:
-            existing = session.exec(select(ConfigSito).where(ConfigSito.chiave == chiave)).first()
-            if not existing:
+        ]:
+            if not session.exec(select(ConfigSito).where(ConfigSito.chiave == chiave)).first():
                 session.add(ConfigSito(chiave=chiave, valore=valore, descrizione=desc))
 
         session.commit()

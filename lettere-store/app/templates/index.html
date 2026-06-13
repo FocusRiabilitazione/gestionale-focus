@@ -155,6 +155,29 @@
 </section>
 {% endif %}
 
+<!-- TEMI -->
+{% if temi %}
+<section class="py-16 px-4 bg-white">
+  <div class="max-w-5xl mx-auto text-center">
+    <p class="text-violet-500 font-semibold tracking-widest text-sm uppercase mb-2">Novità</p>
+    <h2 class="font-display text-4xl font-bold text-gray-800 mb-3">Aggiungi un tema</h2>
+    <p class="text-gray-500 mb-10">Piccole decorazioni stampate in 3D da aggiungere alla tua lettera. <strong class="text-violet-600">Solo +€5 per decorazione!</strong></p>
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      {% for tema in temi %}
+      <a href="/ordina" class="card-hover bg-gradient-to-br from-violet-50 to-rose-50 border border-violet-100 rounded-3xl p-5 flex flex-col items-center gap-2 text-center">
+        <span class="text-4xl">{{ tema.emoji }}</span>
+        <h3 class="font-bold text-gray-800 text-sm">{{ tema.nome }}</h3>
+        {% if tema.descrizione %}
+        <p class="text-gray-400 text-xs">{{ tema.descrizione }}</p>
+        {% endif %}
+      </a>
+      {% endfor %}
+    </div>
+    <p class="text-gray-400 text-sm mt-6">Leone, elefante, unicorno, razzo... personalizza come vuoi!</p>
+  </div>
+</section>
+{% endif %}
+
 <!-- EVENTI -->
 <section class="py-16 px-4 bg-gray-50">
   <div class="max-w-5xl mx-auto text-center">
