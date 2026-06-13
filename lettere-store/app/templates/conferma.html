@@ -1,125 +1,150 @@
 {% extends "base.html" %}
-
-{% block title %}Ordine confermato! – {{ config.get('nome_negozio', 'Lettere del Cuore') }}{% endblock %}
+{% block title %}Ordine confermato 🎉 – {{ config.get('nome_negozio','Lettere del Cuore') }}{% endblock %}
 
 {% block content %}
-<div class="max-w-2xl mx-auto px-4 py-20 text-center">
+<div class="hero-bg min-h-screen py-16 px-4 relative overflow-hidden">
 
-  <!-- Icona successo -->
-  <div class="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
-    <i class="fas fa-check text-green-500 text-4xl"></i>
+  <!-- Coriandoli decorativi -->
+  <div class="deco-wrap">
+    <span class="deco float-a" style="top:5%;  left:5%">🎊</span>
+    <span class="deco float-b" style="top:10%; right:8%">🎉</span>
+    <span class="deco float-c" style="top:3%;  left:40%">✨</span>
+    <span class="deco float-d" style="bottom:20%; left:8%">🎈</span>
+    <span class="deco float-a" style="bottom:15%; right:10%">🎀</span>
   </div>
 
-  <h1 class="font-display text-4xl font-bold text-gray-800 mb-3">Grazie per il tuo ordine! 🎀</h1>
-  <p class="text-gray-500 text-lg mb-2">
-    {% if ordine.pagamento_completato %}
-    Il pagamento è stato ricevuto con successo.
-    {% else %}
-    Il tuo ordine è stato registrato.
-    {% endif %}
-  </p>
-  <p class="text-gray-400 mb-10">Riceverai una email di conferma all'indirizzo <strong>{{ ordine.email }}</strong></p>
+  <div class="max-w-2xl mx-auto relative z-10">
 
-  <!-- Card riepilogo -->
-  <div class="bg-white rounded-3xl shadow-lg p-8 text-left mb-8">
-    <div class="flex items-center justify-between mb-6">
-      <h2 class="font-display text-xl font-bold text-gray-800">Riepilogo ordine</h2>
-      <span class="bg-rose-100 text-rose-600 font-bold px-4 py-2 rounded-full text-sm">{{ ordine.codice_ordine }}</span>
-    </div>
-
-    <div class="flex items-center gap-5 p-4 bg-gradient-to-br from-rose-50 to-violet-50 rounded-2xl mb-6">
-      <div class="w-16 h-16 rounded-xl flex items-center justify-center text-4xl font-display font-bold shadow"
-           style="background: {{ ordine.colore_hex or '#F9A8D440' }}">
-        {{ ordine.lettera_iniziale }}
+    <!-- Icona successo animata -->
+    <div class="text-center mb-8">
+      <div class="w-28 h-28 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center mx-auto shadow-2xl shadow-green-200 mb-6">
+        <i class="fas fa-check text-white text-5xl"></i>
       </div>
-      <div>
-        <p class="font-bold text-gray-800 text-lg">Lettera "{{ ordine.lettera_iniziale }}" con nome "{{ ordine.nome_personalizzato }}"</p>
-        <p class="text-gray-500 text-sm">{{ ordine.dimensione }} · {{ ordine.tipo_evento }}</p>
-        {% if ordine.colore_nome %}
-        <p class="text-gray-500 text-sm">Colore: {{ ordine.colore_nome }}</p>
-        {% endif %}
+      <h1 class="font-display text-4xl md:text-5xl font-bold text-gray-800 mb-3">
+        Grazie {{ ordine.nome }}! 🎀
+      </h1>
+      <p class="text-gray-500 text-lg mb-1">
+        {% if ordine.pagamento_completato %}Il pagamento è stato ricevuto con successo.
+        {% else %}Il tuo ordine è stato registrato.{% endif %}
+      </p>
+      <p class="text-gray-400">Riceverai una conferma a <strong class="text-pink-500">{{ ordine.email }}</strong></p>
+    </div>
+
+    <!-- Card riepilogo ordine -->
+    <div class="bg-white rounded-3xl shadow-2xl overflow-hidden mb-6">
+
+      <!-- Header card -->
+      <div class="bg-gradient-to-r from-pink-500 to-violet-500 px-8 py-5 flex items-center justify-between">
+        <h2 class="font-display text-xl font-bold text-white">Riepilogo ordine</h2>
+        <span class="bg-white/20 text-white font-bold px-4 py-1.5 rounded-full text-sm">{{ ordine.codice_ordine }}</span>
       </div>
-    </div>
 
-    <div class="grid md:grid-cols-2 gap-4 text-sm">
-      <div>
-        <h3 class="font-semibold text-gray-600 mb-2">Dati cliente</h3>
-        <p class="text-gray-700">{{ ordine.nome }} {{ ordine.cognome }}</p>
-        <p class="text-gray-500">{{ ordine.email }}</p>
-        {% if ordine.telefono %}<p class="text-gray-500">{{ ordine.telefono }}</p>{% endif %}
-      </div>
-      <div>
-        <h3 class="font-semibold text-gray-600 mb-2">Indirizzo di spedizione</h3>
-        <p class="text-gray-700">{{ ordine.indirizzo }}</p>
-        <p class="text-gray-500">{{ ordine.cap }} {{ ordine.citta }} ({{ ordine.provincia }})</p>
-      </div>
-    </div>
+      <div class="p-8">
 
-    <div class="border-t border-gray-200 mt-5 pt-5 flex justify-between">
-      <span class="font-semibold text-gray-700">Totale pagato</span>
-      <span class="font-bold text-rose-600 text-xl">€{{ "%.2f"|format(ordine.totale) }}</span>
-    </div>
+        <!-- Prodotto -->
+        <div class="flex items-center gap-5 p-5 bg-gradient-to-br from-pink-50 to-violet-50 rounded-2xl mb-6">
+          <div class="w-20 h-20 rounded-2xl flex items-center justify-center text-5xl font-display font-bold shadow-inner border-2 border-white relative shrink-0"
+               style="background: {{ ordine.colore_hex or '#F9A8D4' }}40; color: {{ ordine.colore_hex or '#ec4899' }}">
+            {{ ordine.lettera_iniziale }}
+          </div>
+          <div class="flex-1">
+            <p class="font-bold text-gray-800 text-lg leading-tight">
+              Lettera "{{ ordine.lettera_iniziale }}" con nome "{{ ordine.nome_personalizzato }}"
+            </p>
+            <p class="text-gray-500 text-sm mt-1">{{ ordine.dimensione }} · {{ ordine.tipo_evento }}</p>
+            {% if ordine.colore_nome %}
+            <p class="text-gray-400 text-xs mt-0.5">Colore: {{ ordine.colore_nome }}</p>
+            {% endif %}
 
-    {% if ordine.tema_nome %}
-    <div class="mt-3 p-3 bg-violet-50 border border-violet-200 rounded-xl text-sm">
-      <strong class="text-violet-700">{{ ordine.tema_emoji }} Tema {{ ordine.tema_nome }}</strong>
-      {% if elementi %}
-      <span class="text-violet-600 ml-2">→
-        {% for e in elementi %}{{ e.emoji }} {{ e.nome }}{% if not loop.last %}, {% endif %}{% endfor %}
-        <span class="font-bold">(+€{{ "%.2f"|format(ordine.prezzo_elementi) }})</span>
-      </span>
-      {% endif %}
-    </div>
-    {% endif %}
+            {% if ordine.tema_nome %}
+            <div class="mt-2 inline-flex items-center gap-2 bg-violet-100 text-violet-700 rounded-full px-3 py-1 text-xs font-semibold">
+              {{ ordine.tema_emoji }} Tema {{ ordine.tema_nome }}
+              {% if elementi %}
+              &nbsp;→&nbsp;
+              {% for e in elementi %}{{ e.emoji }} {{ e.nome }}{% if not loop.last %}, {% endif %}{% endfor %}
+              <span class="ml-1 font-bold">(+€{{ "%.2f"|format(ordine.prezzo_elementi) }})</span>
+              {% endif %}
+            </div>
+            {% endif %}
 
-    {% if ordine.note_cliente %}
-    <div class="mt-3 p-3 bg-gray-50 rounded-xl text-sm text-gray-600">
-      <strong>Note:</strong> {{ ordine.note_cliente }}
-    </div>
-    {% endif %}
-  </div>
-
-  <!-- Stato ordine -->
-  <div class="bg-white rounded-3xl shadow p-6 mb-8">
-    <h3 class="font-bold text-gray-700 mb-4">Stato del tuo ordine</h3>
-    <div class="flex justify-between items-center">
-      {% set stati = ['Pagato', 'In lavorazione', 'Spedito', 'Consegnato'] %}
-      {% set stato_attuale = ordine.stato %}
-      {% for s in stati %}
-      <div class="flex flex-col items-center flex-1">
-        <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm mb-1
-          {% if s == stato_attuale %}bg-rose-500 text-white{% elif stati.index(s) < stati.index(stato_attuale) if stato_attuale in stati else false %}bg-green-400 text-white{% else %}bg-gray-200 text-gray-400{% endif %}">
-          {% if s == 'Pagato' %}💳{% elif s == 'In lavorazione' %}🔧{% elif s == 'Spedito' %}📦{% else %}🏠{% endif %}
+            {% if ordine.note_cliente %}
+            <p class="text-gray-400 text-xs mt-2 italic">Note: {{ ordine.note_cliente }}</p>
+            {% endif %}
+          </div>
         </div>
-        <span class="text-xs text-center text-gray-500">{{ s }}</span>
+
+        <!-- Dati cliente + spedizione -->
+        <div class="grid md:grid-cols-2 gap-5 mb-6">
+          <div class="bg-gray-50 rounded-2xl p-4">
+            <h3 class="font-bold text-gray-600 text-xs uppercase tracking-widest mb-3">Dati cliente</h3>
+            <p class="font-semibold text-gray-800">{{ ordine.nome }} {{ ordine.cognome }}</p>
+            <p class="text-gray-500 text-sm">{{ ordine.email }}</p>
+            {% if ordine.telefono %}<p class="text-gray-500 text-sm">{{ ordine.telefono }}</p>{% endif %}
+          </div>
+          <div class="bg-gray-50 rounded-2xl p-4">
+            <h3 class="font-bold text-gray-600 text-xs uppercase tracking-widest mb-3">Spedizione</h3>
+            <p class="font-semibold text-gray-800">{{ ordine.indirizzo }}</p>
+            <p class="text-gray-500 text-sm">{{ ordine.cap }} {{ ordine.citta }} ({{ ordine.provincia }})</p>
+          </div>
+        </div>
+
+        <!-- Totale -->
+        <div class="border-t border-gray-100 pt-5 flex justify-between items-center">
+          <span class="font-semibold text-gray-600">Totale pagato</span>
+          <span class="font-display font-bold text-2xl gradient-text">€{{ "%.2f"|format(ordine.totale) }}</span>
+        </div>
+
       </div>
-      {% if not loop.last %}
-      <div class="flex-1 h-0.5 bg-gray-200 -mt-4"></div>
-      {% endif %}
-      {% endfor %}
     </div>
-  </div>
 
-  <!-- Info consegna -->
-  <div class="bg-blue-50 border border-blue-200 rounded-2xl p-5 text-left mb-8">
-    <p class="font-semibold text-blue-700 mb-1"><i class="fas fa-truck mr-2"></i>Tempi di consegna</p>
-    <p class="text-blue-600 text-sm">{{ config.get('tempi_consegna', '7-10 giorni lavorativi') }} dalla conferma dell'ordine.</p>
-    <p class="text-blue-500 text-xs mt-1">Riceverai un'email con il codice di tracciamento quando il pacco viene spedito.</p>
-  </div>
+    <!-- Stato ordine timeline -->
+    <div class="bg-white rounded-3xl shadow-lg p-7 mb-6">
+      <h3 class="font-bold text-gray-700 mb-6 text-center">Stato del tuo ordine</h3>
+      <div class="relative">
+        <div class="absolute left-5 top-5 bottom-5 w-0.5 bg-gray-100"></div>
+        {% set stati = [('💳','Pagato'),('🔧','In lavorazione'),('📦','Spedito'),('🏠','Consegnato')] %}
+        {% for emoji, stato in stati %}
+        {% set is_done = stato == ordine.stato or (stati|selectattr(1,'equalto',ordine.stato)|list|length > 0 and loop.index <= (stati|selectattr(1,'equalto',ordine.stato)|list|first|list|first|int if false else 1)) %}
+        <div class="flex items-center gap-4 mb-4 relative">
+          <div class="w-10 h-10 rounded-full flex items-center justify-center text-lg shrink-0 z-10
+            {{ 'bg-gradient-to-br from-pink-400 to-violet-500 shadow-md' if stato == ordine.stato else 'bg-gray-100' }}">
+            {{ emoji }}
+          </div>
+          <div>
+            <p class="font-semibold {{ 'text-pink-600' if stato == ordine.stato else 'text-gray-400' }} text-sm">
+              {{ stato }}
+              {% if stato == ordine.stato %}<span class="ml-2 text-xs bg-pink-100 text-pink-500 rounded-full px-2 py-0.5">← attuale</span>{% endif %}
+            </p>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
 
-  <!-- Azioni -->
-  <div class="flex flex-col sm:flex-row gap-4 justify-center">
-    <a href="/" class="border-2 border-rose-300 text-rose-600 font-bold px-8 py-3 rounded-full hover:bg-rose-50 transition">
-      ← Torna alla home
-    </a>
-    {% if config.get('whatsapp') or config.get('telefono') %}
-    <a href="https://wa.me/{{ (config.get('whatsapp') or config.get('telefono', '')) | replace('+','') | replace(' ','') }}"
-       target="_blank"
-       class="bg-green-500 text-white font-bold px-8 py-3 rounded-full hover:bg-green-600 transition">
-      <i class="fab fa-whatsapp mr-2"></i>Contattaci su WhatsApp
-    </a>
-    {% endif %}
-  </div>
+    <!-- Info box consegna -->
+    <div class="bg-blue-50 border border-blue-200 rounded-2xl p-5 mb-8 flex gap-4">
+      <div class="text-2xl shrink-0">🚚</div>
+      <div>
+        <p class="font-semibold text-blue-700 mb-1">Tempi di consegna</p>
+        <p class="text-blue-600 text-sm">{{ config.get('tempi_consegna','7-10 giorni lavorativi') }} dalla conferma dell'ordine.</p>
+        <p class="text-blue-400 text-xs mt-1">Riceverai un'email con il codice di tracciamento quando il pacco viene spedito.</p>
+      </div>
+    </div>
 
+    <!-- Azioni -->
+    <div class="flex flex-col sm:flex-row gap-4 justify-center">
+      <a href="/" class="btn-outline font-bold px-8 py-3 rounded-full text-center bg-white">
+        ← Torna alla home
+      </a>
+      {% if config.get('telefono') %}
+      <a href="https://wa.me/{{ config.get('telefono','') | replace('+','') | replace(' ','') }}"
+         target="_blank"
+         class="flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white font-bold px-8 py-3 rounded-full transition shadow-lg">
+        <i class="fab fa-whatsapp text-xl"></i> Scrivici su WhatsApp
+      </a>
+      {% endif %}
+    </div>
+
+  </div>
 </div>
 {% endblock %}

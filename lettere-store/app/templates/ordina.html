@@ -10,28 +10,40 @@
 {% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto px-4 py-12" x-data="ordineApp()" x-init="init()">
 
-  <div class="text-center mb-10">
-    <h1 class="font-display text-4xl font-bold text-gray-800 mb-2">Crea la tua lettera</h1>
-    <p class="text-gray-500">Personalizza ogni dettaglio – ci vuole solo 2 minuti</p>
+<!-- Mini hero pagina ordina -->
+<div class="hero-bg py-12 px-4 text-center relative overflow-hidden">
+  <div class="deco-wrap opacity-40">
+    <span class="deco float-a" style="top:10%; left:5%">🎀</span>
+    <span class="deco float-b" style="top:15%; right:7%">✨</span>
+    <span class="deco float-c" style="bottom:10%; left:15%">🌸</span>
+    <span class="deco float-d" style="bottom:15%; right:12%">⭐</span>
   </div>
+  <div class="relative z-10">
+    <span class="badge-nastro text-sm font-bold text-pink-500 uppercase tracking-widest">Personalizzazione</span>
+    <h1 class="font-display text-4xl md:text-5xl font-bold text-gray-800 mt-3 mb-2">Crea la tua lettera</h1>
+    <p class="text-gray-500">Ci vuole solo <strong class="text-pink-500">2 minuti</strong> — la ricevi a casa in {{ config.get('tempi_consegna','7-10 giorni') }}</p>
+  </div>
+</div>
+
+<div class="max-w-4xl mx-auto px-4 py-10" x-data="ordineApp()" x-init="init()">
 
   <!-- Step indicator -->
   <div class="flex items-center justify-center mb-10 gap-0">
     <template x-for="(label, i) in ['Personalizza','Spedizione','Pagamento']" :key="i">
       <div class="flex items-center">
         <div class="flex flex-col items-center">
-          <div :class="step >= i+1 ? 'bg-rose-500 text-white' : 'bg-gray-200 text-gray-400'"
-               class="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm transition-all">
+          <div :class="step >= i+1 ? 'step-dot-active text-white' : 'bg-gray-200 text-gray-400'"
+               class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all">
             <span x-show="step > i+1">✓</span>
             <span x-show="step <= i+1" x-text="i+1"></span>
           </div>
-          <span :class="step >= i+1 ? 'text-rose-500 font-semibold' : 'text-gray-400'"
+          <span :class="step >= i+1 ? 'text-pink-500 font-semibold' : 'text-gray-400'"
                 class="text-xs mt-1 hidden md:block" x-text="label"></span>
         </div>
-        <div x-show="i < 2" :class="step > i+1 ? 'bg-rose-400' : 'bg-gray-200'"
-             class="w-16 md:w-24 h-1 mx-1 transition-all rounded"></div>
+        <div x-show="i < 2"
+             :class="step > i+1 ? 'bg-gradient-to-r from-pink-400 to-violet-400' : 'bg-gray-200'"
+             class="w-16 md:w-28 h-1 mx-1 transition-all rounded-full"></div>
       </div>
     </template>
   </div>
@@ -39,8 +51,11 @@
   <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- STEP 1: PERSONALIZZA                                        -->
   <!-- ═══════════════════════════════════════════════════════════ -->
-  <div x-show="step === 1" class="bg-white rounded-3xl shadow-lg p-8">
-    <h2 class="font-display text-2xl font-bold mb-6 text-gray-800">🔤 Personalizza la lettera</h2>
+  <div x-show="step === 1" class="bg-white rounded-3xl shadow-xl border border-pink-50 p-8">
+    <div class="flex items-center gap-3 mb-8">
+      <div class="w-10 h-10 rounded-full step-dot-active flex items-center justify-center text-white font-bold">1</div>
+      <h2 class="font-display text-2xl font-bold text-gray-800">Personalizza la lettera</h2>
+    </div>
 
     <div class="grid md:grid-cols-2 gap-6">
 
@@ -228,16 +243,19 @@
     <div x-show="errore" class="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm" x-text="errore"></div>
 
     <button @click="proseguiStep1()"
-            class="mt-8 w-full btn-primary text-white font-bold py-4 rounded-2xl text-lg shadow-lg">
-      Continua → Dati di spedizione
+            class="mt-8 w-full btn-main text-white font-bold py-4 rounded-2xl text-lg shadow-xl">
+      Continua → Dati di spedizione 🎀
     </button>
   </div>
 
   <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- STEP 2: SPEDIZIONE                                          -->
   <!-- ═══════════════════════════════════════════════════════════ -->
-  <div x-show="step === 2" class="bg-white rounded-3xl shadow-lg p-8">
-    <h2 class="font-display text-2xl font-bold mb-6 text-gray-800">📦 Dati di spedizione</h2>
+  <div x-show="step === 2" class="bg-white rounded-3xl shadow-xl border border-pink-50 p-8">
+    <div class="flex items-center gap-3 mb-8">
+      <div class="w-10 h-10 rounded-full step-dot-active flex items-center justify-center text-white font-bold">2</div>
+      <h2 class="font-display text-2xl font-bold text-gray-800">Dati di spedizione</h2>
+    </div>
 
     <div class="grid md:grid-cols-2 gap-5">
       <div>
@@ -308,9 +326,9 @@
     <div x-show="errore" class="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm" x-text="errore"></div>
 
     <div class="flex gap-4 mt-8">
-      <button @click="step = 1" class="flex-1 border-2 border-gray-300 text-gray-600 font-bold py-4 rounded-2xl">← Indietro</button>
-      <button @click="proseguiStep2()" class="flex-2 w-full btn-primary text-white font-bold py-4 rounded-2xl text-lg shadow-lg">
-        Continua → Pagamento
+      <button @click="step = 1" class="flex-1 border-2 border-gray-200 text-gray-500 font-bold py-4 rounded-2xl hover:bg-gray-50 transition">← Indietro</button>
+      <button @click="proseguiStep2()" class="flex-2 w-full btn-main text-white font-bold py-4 rounded-2xl text-lg shadow-xl">
+        Continua → Pagamento 💳
       </button>
     </div>
   </div>
@@ -318,8 +336,11 @@
   <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- STEP 3: PAGAMENTO                                           -->
   <!-- ═══════════════════════════════════════════════════════════ -->
-  <div x-show="step === 3" class="bg-white rounded-3xl shadow-lg p-8">
-    <h2 class="font-display text-2xl font-bold mb-6 text-gray-800">💳 Pagamento</h2>
+  <div x-show="step === 3" class="bg-white rounded-3xl shadow-xl border border-pink-50 p-8">
+    <div class="flex items-center gap-3 mb-8">
+      <div class="w-10 h-10 rounded-full step-dot-active flex items-center justify-center text-white font-bold">3</div>
+      <h2 class="font-display text-2xl font-bold text-gray-800">Pagamento sicuro</h2>
+    </div>
 
     <!-- Riepilogo prodotto -->
     <div class="p-5 bg-rose-50 rounded-2xl border border-rose-200 mb-8">
@@ -350,7 +371,7 @@
       <p class="font-semibold text-gray-700 mb-4">Scegli il metodo di pagamento:</p>
 
       <button @click="pagaConStripe()"
-              class="w-full flex items-center justify-between p-5 border-2 border-gray-200 hover:border-violet-400 rounded-2xl mb-4 transition-all group">
+              class="w-full flex items-center justify-between p-5 border-2 border-gray-100 hover:border-violet-400 hover:bg-violet-50 rounded-2xl mb-4 transition-all group shadow-sm">
         <div class="flex items-center gap-4">
           <div class="w-12 h-12 bg-violet-50 rounded-xl flex items-center justify-center">
             <i class="fas fa-credit-card text-violet-500 text-xl"></i>
