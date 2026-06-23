@@ -52,11 +52,37 @@
 
 /* ── Sfondi ──────────────────────────────────────────────── */
 .hero-bg {
-  background:
-    radial-gradient(ellipse at 10% 20%, #fce7f3 0%, transparent 50%),
-    radial-gradient(ellipse at 90% 80%, #ede9fe 0%, transparent 50%),
-    radial-gradient(ellipse at 50% 50%, #e0f2fe 0%, transparent 60%),
-    #fffbfe;
+  background-color: #fffbfe;
+  background-image: radial-gradient(rgba(236,72,153,.07) 1.2px, transparent 1.2px);
+  background-size: 26px 26px;
+}
+
+/* Blob morbidi hero */
+.hero-blob {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Dot e stelle decorative hero */
+.hdot {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+  opacity: .55;
+  display: block;
+}
+.hdot-star {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  pointer-events: none;
+  z-index: 0;
+  opacity: .38;
+  display: block;
+  clip-path: polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);
 }
 .section-dots {
   background-image: radial-gradient(circle, #e9d5ff 1px, transparent 1px);
