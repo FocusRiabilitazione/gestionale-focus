@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 310 192" width="310" height="192">
+  <defs>
+    <linearGradient id="gl" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f472b6"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+    <linearGradient id="gp" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fb923c"/>
+      <stop offset="100%" stop-color="#fbbf24"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Stellina decorativa tra L e P -->
+  <polygon points="155,22 157,15 159,22 166,22 160,26 162,33 155,29 149,33 151,26 145,22"
+           fill="#fde68a"/>
+  <circle cx="150" cy="90" r="3" fill="#c4b5fd" opacity="0.8"/>
+  <circle cx="162" cy="75" r="2" fill="#fde68a" opacity="0.8"/>
+
+  <!-- ===== L ===== -->
+  <!-- Ombra leggera -->
+  <rect x="12" y="12" width="46" height="130" rx="8" fill="#c084fc" opacity="0.25"/>
+  <rect x="12" y="110" width="140" height="30" rx="8" fill="#c084fc" opacity="0.25"/>
+  <!-- Corpo -->
+  <rect x="8"  y="8"  width="46" height="130" rx="8" fill="url(#gl)"/>
+  <rect x="8"  y="108" width="140" height="30" rx="8" fill="url(#gl)"/>
+  <!-- Riflesso lucido in alto -->
+  <rect x="8" y="8" width="46" height="18" rx="8" fill="white" opacity="0.18"/>
+  <!-- Testo LETTERE verticale nel gambo -->
+  <text transform="translate(31,58) rotate(-90)"
+        text-anchor="middle"
+        font-family="Arial, Helvetica, sans-serif"
+        font-size="9.5" font-weight="900" fill="white" letter-spacing="5.5">LETTERE</text>
+
+  <!-- ===== P ===== -->
+  <!-- Ombra leggera -->
+  <rect x="172" y="12" width="46" height="130" rx="8" fill="#fed7aa" opacity="0.4"/>
+  <circle cx="218" cy="55" r="46" fill="#fed7aa" opacity="0.4"/>
+  <!-- Corpo -->
+  <rect x="168" y="8"  width="46" height="130" rx="8" fill="url(#gp)"/>
+  <circle cx="214" cy="53" r="45" fill="url(#gp)"/>
+  <!-- Riflesso lucido -->
+  <ellipse cx="214" cy="16" rx="28" ry="8" fill="white" opacity="0.18"/>
+  <!-- Testo PAZZE verticale nel cerchio (destra) -->
+  <text x="244" y="27"  text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="9.5" font-weight="900" fill="white">P</text>
+  <text x="244" y="41"  text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="9.5" font-weight="900" fill="white">A</text>
+  <text x="244" y="55"  text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="9.5" font-weight="900" fill="white">Z</text>
+  <text x="244" y="69"  text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="9.5" font-weight="900" fill="white">Z</text>
+  <text x="244" y="83"  text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="9.5" font-weight="900" fill="white">E</text>
+
+  <!-- ===== Nome brand ===== -->
+  <text x="155" y="162"
+        font-family="Georgia, 'Times New Roman', serif"
+        font-size="31" font-weight="bold" text-anchor="middle">
+    <tspan fill="#ec4899">LETTERE</tspan><tspan fill="#fb923c"> PAZZE</tspan>
+  </text>
+
+  <!-- Tagline -->
+  <text x="155" y="181"
+        font-family="Arial, Helvetica, sans-serif"
+        font-size="8.5" fill="#9ca3af" text-anchor="middle" letter-spacing="2">
+    LETTERE · NUMERI · DECORAZIONI 3D
+  </text>
+</svg>
