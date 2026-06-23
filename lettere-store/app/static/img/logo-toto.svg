@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 410" width="400" height="410">
+<defs>
+  <style>@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@900&amp;display=swap');</style>
+</defs>
+
+<!-- ===== CERCHIO ARCOBALENO ===== -->
+<path d="M 200,25 A 183,183 0 0,1 359,117" fill="none" stroke="#ff6b9e" stroke-width="11" stroke-linecap="round"/>
+<path d="M 359,117 A 183,183 0 0,1 359,299" fill="none" stroke="#ffa040" stroke-width="11" stroke-linecap="round"/>
+<path d="M 359,299 A 183,183 0 0,1 200,391" fill="none" stroke="#ffd700" stroke-width="11" stroke-linecap="round"/>
+<path d="M 200,391 A 183,183 0 0,1 41,299"  fill="none" stroke="#00d4aa" stroke-width="11" stroke-linecap="round"/>
+<path d="M 41,299  A 183,183 0 0,1 41,117"  fill="none" stroke="#00c0ff" stroke-width="11" stroke-linecap="round"/>
+<path d="M 41,117  A 183,183 0 0,1 200,25"  fill="none" stroke="#c084fc" stroke-width="11" stroke-linecap="round"/>
+
+<!-- ===== STELLINE E PUNTINI IN ALTO ===== -->
+<!-- Stella grande centrale -->
+<polygon points="200,42 204,54 217,54 207,62 211,74 200,67 189,74 193,62 183,54 196,54" fill="#ffd700"/>
+<!-- Stellina sinistra -->
+<polygon points="148,64 151,73 160,73 153,79 156,88 148,83 140,88 143,79 136,73 145,73" fill="#ff6b9e"/>
+<!-- Stellina destra -->
+<polygon points="252,64 255,73 264,73 257,79 260,88 252,83 244,88 247,79 240,73 249,73" fill="#c084fc"/>
+<!-- Puntini colorati -->
+<circle cx="172" cy="52" r="5" fill="#00c0ff"/>
+<circle cx="228" cy="52" r="5" fill="#00d4aa"/>
+<circle cx="163" cy="80" r="3.5" fill="#ffa040"/>
+<circle cx="237" cy="80" r="3.5" fill="#ffd700"/>
+<circle cx="182" cy="94" r="3" fill="#ff6b9e"/>
+<circle cx="218" cy="94" r="3" fill="#c084fc"/>
+
+<!-- ===== T O T O — OMBRA (scura, offset +4,+5) ===== -->
+<text x="204" y="261" text-anchor="middle"
+      font-family="'Nunito','Arial Rounded MT Bold',Arial,sans-serif"
+      font-size="90" font-weight="900" letter-spacing="2">
+  <tspan fill="#b02060">T</tspan><tspan fill="#0077aa">O</tspan><tspan fill="#b07000">T</tspan><tspan fill="#6600bb">O</tspan>
+</text>
+
+<!-- ===== T O T O — COLORI PRINCIPALI ===== -->
+<text x="200" y="256" text-anchor="middle"
+      font-family="'Nunito','Arial Rounded MT Bold',Arial,sans-serif"
+      font-size="90" font-weight="900" letter-spacing="2">
+  <tspan fill="#ff6b9e">T</tspan><tspan fill="#36c6f4">O</tspan><tspan fill="#ffaa00">T</tspan><tspan fill="#c084fc">O</tspan>
+</text>
+
+<!-- Riflessi lucidi sulle lettere -->
+<ellipse cx="102" cy="198" rx="13" ry="7" fill="white" opacity="0.32" transform="rotate(-30,102,198)"/>
+<ellipse cx="165" cy="202" rx="13" ry="7" fill="white" opacity="0.28" transform="rotate(-30,165,202)"/>
+<ellipse cx="240" cy="198" rx="13" ry="7" fill="white" opacity="0.32" transform="rotate(-30,240,198)"/>
+<ellipse cx="300" cy="202" rx="13" ry="7" fill="white" opacity="0.28" transform="rotate(-30,300,202)"/>
+
+<!-- ===== LINEA SEPARATRICE + CUORE ===== -->
+<line x1="62"  y1="284" x2="182" y2="284" stroke="#ff6b9e" stroke-width="2.5" stroke-linecap="round"/>
+<text x="200" y="289" text-anchor="middle" font-size="16" fill="#ff6b9e">♥</text>
+<line x1="218" y1="284" x2="338" y2="284" stroke="#c084fc" stroke-width="2.5" stroke-linecap="round"/>
+
+<!-- ===== TESTO "IL COLORATO MONDO" ===== -->
+<text x="200" y="312" text-anchor="middle"
+      font-family="'Nunito','Arial Rounded MT Bold',Arial,sans-serif"
+      font-size="20" font-weight="900" letter-spacing="1">
+  <tspan fill="#ff6b9e">IL </tspan><tspan fill="#ffa040">COLORATO </tspan><tspan fill="#c084fc">MONDO</tspan>
+</text>
+
+<!-- ===== TESTO "delle Creazioni 3D" ===== -->
+<text x="200" y="340" text-anchor="middle"
+      font-family="Georgia,'Times New Roman',serif"
+      font-size="19" font-style="italic" fill="#555555">
+  — delle Creazioni 3D —
+</text>
+</svg>
