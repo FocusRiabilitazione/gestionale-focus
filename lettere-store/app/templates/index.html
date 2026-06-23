@@ -1,0 +1,404 @@
+{% extends "base.html" %}
+{% block title %}{{ config.get('nome_negozio','TOTO 3D') }} – Il colorato mondo delle Creazioni 3D{% endblock %}
+
+{% block content %}
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- HERO                                                        -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<section class="hero-bg relative overflow-hidden py-20 md:py-28 px-4">
+
+  <!-- Blob di colore morbidi -->
+  <div aria-hidden="true">
+    <div class="hero-blob" style="width:580px;height:580px;top:-210px;left:-160px;background:radial-gradient(circle,rgba(252,231,243,.9),transparent 65%)"></div>
+    <div class="hero-blob" style="width:480px;height:480px;top:5%;right:-140px;background:radial-gradient(circle,rgba(237,233,254,.85),transparent 65%)"></div>
+    <div class="hero-blob" style="width:380px;height:380px;bottom:-110px;left:30%;background:radial-gradient(circle,rgba(224,242,254,.75),transparent 65%)"></div>
+    <div class="hero-blob" style="width:260px;height:260px;top:38%;left:42%;background:radial-gradient(circle,rgba(254,240,138,.35),transparent 65%)"></div>
+  </div>
+  <!-- Puntini e stelline decorative -->
+  <div aria-hidden="true" class="deco-wrap">
+    <span class="hdot float-a" style="top:10%;left:5%;width:13px;height:13px;background:#f9a8d4"></span>
+    <span class="hdot float-b" style="top:23%;left:17%;width:7px;height:7px;background:#c4b5fd"></span>
+    <span class="hdot float-c" style="top:7%;right:24%;width:10px;height:10px;background:#86efac"></span>
+    <span class="hdot float-d" style="top:29%;right:7%;width:14px;height:14px;background:#fcd34d"></span>
+    <span class="hdot float-a" style="bottom:18%;left:9%;width:9px;height:9px;background:#f9a8d4"></span>
+    <span class="hdot float-b" style="bottom:28%;left:43%;width:7px;height:7px;background:#c4b5fd"></span>
+    <span class="hdot float-c" style="bottom:12%;right:11%;width:12px;height:12px;background:#93c5fd"></span>
+    <span class="hdot float-d" style="top:52%;left:2%;width:9px;height:9px;background:#fca5a5"></span>
+    <span class="hdot float-a" style="top:58%;right:3%;width:7px;height:7px;background:#6ee7b7"></span>
+    <span class="hdot-star float-b" style="top:14%;left:13%;background:#f9a8d4"></span>
+    <span class="hdot-star float-c" style="bottom:22%;right:19%;background:#c4b5fd"></span>
+    <span class="hdot-star float-a" style="top:43%;right:13%;background:#fcd34d"></span>
+  </div>
+
+  <div class="max-w-6xl mx-auto flex flex-col md:flex-row items-center gap-14 relative z-10">
+
+    <!-- Testo hero -->
+    <div class="flex-1 text-center md:text-left fade-up">
+      <div class="inline-flex items-center gap-2 bg-white/70 backdrop-blur border border-pink-200 rounded-full px-4 py-1.5 text-sm font-semibold text-pink-600 mb-6 shadow-sm">
+        <span class="sparkle-1">✨</span>
+        Fatto a mano con amore in Italia
+        <span class="sparkle-2">✨</span>
+      </div>
+
+      <h1 class="font-display text-5xl md:text-6xl lg:text-7xl font-bold text-gray-800 leading-tight mb-5">
+        Lettere <span class="gradient-text">Magiche</span><br>
+        per i tuoi<br>
+        <span class="font-script text-6xl md:text-7xl text-pink-400">Momenti Speciali</span>
+      </h1>
+
+      <p class="text-gray-500 text-lg md:text-xl mb-8 max-w-xl mx-auto md:mx-0">
+        Lettere e decorazioni personalizzate stampate in 3D con il nome del tuo bambino.
+        Perfette per <strong class="text-pink-500">battesimi</strong>, <strong class="text-violet-500">compleanni</strong>,
+        <strong class="text-blue-400">baby shower</strong> e nascite.
+      </p>
+
+      <div class="flex flex-wrap gap-4 justify-center md:justify-start">
+        <a href="/ordina" class="btn-main text-white font-bold px-8 py-4 rounded-full text-lg shadow-xl">
+          🎀 Crea la tua lettera
+        </a>
+        <a href="#come-funziona" class="btn-outline font-bold px-8 py-4 rounded-full text-lg bg-white/70">
+          Scopri come funziona
+        </a>
+      </div>
+
+      <!-- Trust badges -->
+      <div class="flex flex-wrap gap-4 mt-10 justify-center md:justify-start">
+        <div class="flex items-center gap-2 bg-white/70 rounded-full px-4 py-2 text-sm shadow-sm">
+          <span class="text-green-500">✓</span> Stampa 3D PLA
+        </div>
+        <div class="flex items-center gap-2 bg-white/70 rounded-full px-4 py-2 text-sm shadow-sm">
+          <span class="text-green-500">✓</span> Spedizione in tutta Italia
+        </div>
+        <div class="flex items-center gap-2 bg-white/70 rounded-full px-4 py-2 text-sm shadow-sm">
+          <span class="text-green-500">✓</span> 100% personalizzata
+        </div>
+      </div>
+    </div>
+
+    <!-- Foto prodotto -->
+    <div class="flex-1 flex justify-center relative">
+      <div class="relative">
+        <!-- Cerchio decorativo dietro -->
+        <div class="absolute inset-0 rounded-full scale-110 opacity-30"
+             style="background: radial-gradient(circle, #f9a8d4, #c4b5fd, transparent 70%)"></div>
+
+        <!-- Immagine -->
+        <div class="w-72 h-72 md:w-96 md:h-96 rounded-3xl overflow-hidden shadow-2xl border-4 border-white relative">
+          <img src="/static/img/hero.jpg"
+               alt="Lettera personalizzata battesimo Greta"
+               class="w-full h-full object-cover"
+               id="hero-img">
+          <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-pink-100 via-violet-100 to-blue-100 absolute inset-0"
+               id="hero-placeholder" style="display:none">
+            <div class="text-center">
+              <span class="font-script text-9xl text-violet-300 block">G</span>
+              <span class="font-script text-3xl text-pink-300">Greta</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Badge flottanti sopra la foto -->
+        <div class="absolute -bottom-5 -left-6 card-glass rounded-2xl shadow-xl px-4 py-3 flex items-center gap-3 float-a">
+          <span class="text-3xl">🎀</span>
+          <div>
+            <p class="font-bold text-gray-800 text-sm leading-tight">Battesimo Greta</p>
+            <p class="text-xs text-gray-400">Lettera G · Lilla</p>
+          </div>
+        </div>
+
+        <div class="absolute -top-5 -right-6 card-glass rounded-2xl shadow-xl px-4 py-3 text-center float-b">
+          <p class="text-xs text-gray-400">a partire da</p>
+          <p class="font-display font-bold text-pink-500 text-2xl">€22</p>
+        </div>
+
+        <div class="absolute top-1/2 -right-4 card-glass rounded-full shadow-xl w-14 h-14 flex items-center justify-center text-2xl float-c">
+          🦁
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Wave bottom -->
+  <div class="wave-divider absolute bottom-0 left-0 right-0">
+    <svg viewBox="0 0 1440 60" preserveAspectRatio="none" style="height:50px">
+      <path d="M0,40 C480,0 960,60 1440,20 L1440,60 L0,60 Z" fill="white"/>
+    </svg>
+  </div>
+</section>
+
+<script>
+  const img = document.getElementById('hero-img');
+  if (img) img.onerror = () => {
+    img.style.display = 'none';
+    document.getElementById('hero-placeholder').style.display = 'flex';
+  };
+</script>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- EVENTI SPECIALI                                            -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<section class="py-20 px-4 bg-white">
+  <div class="max-w-6xl mx-auto">
+    <div class="text-center mb-14">
+      <span class="badge-nastro text-sm font-bold text-pink-500 uppercase tracking-widest">Per ogni occasione</span>
+      <h2 class="font-display text-4xl md:text-5xl font-bold text-gray-800 mt-4 mb-3">
+        Il dono perfetto per ogni <span class="gradient-text">momento</span>
+      </h2>
+      <p class="text-gray-400 max-w-xl mx-auto">Ogni evento è unico e speciale — le nostre lettere accompagnano i ricordi più belli</p>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-5">
+
+      <div class="card-hover card-event rounded-3xl overflow-hidden shadow-md text-center group cursor-pointer" onclick="location.href='/ordina?evento=Battesimo'">
+        <div class="h-2 bg-gradient-to-r from-sky-300 to-violet-400"></div>
+        <div class="p-7">
+          <div class="w-16 h-16 rounded-full bg-sky-50 flex items-center justify-center text-4xl mx-auto mb-4 group-hover:scale-110 transition">🕊️</div>
+          <h3 class="font-display font-bold text-gray-800 text-xl mb-2">Battesimo</h3>
+          <p class="text-gray-400 text-sm">Un ricordo prezioso e duraturo per il giorno più speciale della vita</p>
+        </div>
+      </div>
+
+      <div class="card-hover card-event rounded-3xl overflow-hidden shadow-md text-center group cursor-pointer" onclick="location.href='/ordina?evento=Compleanno'">
+        <div class="h-2 bg-gradient-to-r from-pink-400 to-rose-400"></div>
+        <div class="p-7">
+          <div class="w-16 h-16 rounded-full bg-pink-50 flex items-center justify-center text-4xl mx-auto mb-4 group-hover:scale-110 transition">🎂</div>
+          <h3 class="font-display font-bold text-gray-800 text-xl mb-2">Compleanno</h3>
+          <p class="text-gray-400 text-sm">Il regalo che resta — decora la festa e poi la cameretta per sempre</p>
+        </div>
+      </div>
+
+      <div class="card-hover card-event rounded-3xl overflow-hidden shadow-md text-center group cursor-pointer" onclick="location.href='/ordina?evento=Nascita'">
+        <div class="h-2 bg-gradient-to-r from-amber-300 to-pink-300"></div>
+        <div class="p-7">
+          <div class="w-16 h-16 rounded-full bg-amber-50 flex items-center justify-center text-4xl mx-auto mb-4 group-hover:scale-110 transition">🍼</div>
+          <h3 class="font-display font-bold text-gray-800 text-xl mb-2">Baby Shower</h3>
+          <p class="text-gray-400 text-sm">Sorprendi la futura mamma con una decorazione unica già prima del parto</p>
+        </div>
+      </div>
+
+      <div class="card-hover card-event rounded-3xl overflow-hidden shadow-md text-center group cursor-pointer" onclick="location.href='/ordina?evento=Prima Comunione'">
+        <div class="h-2 bg-gradient-to-r from-violet-400 to-fuchsia-400"></div>
+        <div class="p-7">
+          <div class="w-16 h-16 rounded-full bg-violet-50 flex items-center justify-center text-4xl mx-auto mb-4 group-hover:scale-110 transition">⛪</div>
+          <h3 class="font-display font-bold text-gray-800 text-xl mb-2">Prima Comunione</h3>
+          <p class="text-gray-400 text-sm">Celebra questo traguardo con una decorazione elegante e personale</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- COME FUNZIONA                                              -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<section class="py-20 px-4 section-dots" id="come-funziona">
+  <div class="max-w-5xl mx-auto">
+    <div class="text-center mb-14">
+      <span class="badge-nastro text-sm font-bold text-violet-500 uppercase tracking-widest">Semplice e veloce</span>
+      <h2 class="font-display text-4xl md:text-5xl font-bold text-gray-800 mt-4">
+        Come funziona
+      </h2>
+    </div>
+
+    <div class="grid md:grid-cols-4 gap-8 relative">
+      <!-- Linea connettore (desktop) -->
+      <div class="hidden md:block absolute top-10 left-1/8 right-1/8 h-0.5 bg-gradient-to-r from-pink-200 via-violet-200 to-pink-200" style="left:12.5%;right:12.5%"></div>
+
+      {% for step_data in [
+        ('1', '🔤', 'Scegli la lettera', 'Seleziona la lettera iniziale del nome e il colore che preferisci tra 8 opzioni', 'from-pink-400 to-rose-400'),
+        ('2', '✍️', 'Inserisci il nome', 'Scrivi il nome da personalizzare, scegli la dimensione e il tipo di evento', 'from-violet-400 to-purple-400'),
+        ('3', '💳', 'Paga in sicurezza', 'Carta di credito con Stripe o PayPal — pagamento 100% sicuro e protetto', 'from-blue-400 to-cyan-400'),
+        ('4', '📦', 'Ricevi a casa', 'Produciamo la tua lettera e la spediamo in tutta Italia in ' ~ config.get('tempi_consegna','7-10 gg'), 'from-green-400 to-emerald-400'),
+      ] %}
+      <div class="flex flex-col items-center text-center relative">
+        <div class="w-20 h-20 rounded-full bg-gradient-to-br {{ step_data[4] }} flex items-center justify-center text-4xl shadow-lg mb-5 relative z-10">
+          {{ step_data[1] }}
+        </div>
+        <div class="w-7 h-7 rounded-full bg-white border-2 border-gray-200 flex items-center justify-center text-xs font-bold text-gray-500 mb-3 -mt-2">
+          {{ step_data[0] }}
+        </div>
+        <h3 class="font-bold text-gray-800 text-lg mb-2">{{ step_data[2] }}</h3>
+        <p class="text-gray-400 text-sm leading-relaxed">{{ step_data[3] }}</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- PREZZI                                                     -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<section class="py-20 px-4 bg-white" id="prezzi">
+  <div class="max-w-5xl mx-auto">
+    <div class="text-center mb-14">
+      <span class="badge-nastro text-sm font-bold text-pink-500 uppercase tracking-widest">Trasparenza totale</span>
+      <h2 class="font-display text-4xl md:text-5xl font-bold text-gray-800 mt-4 mb-3">Scegli la tua dimensione</h2>
+      <p class="text-gray-400">Ogni lettera include la <strong>lettera iniziale</strong> + <strong>targhetta col nome</strong> in corsivo</p>
+    </div>
+
+    <div class="grid md:grid-cols-3 gap-6">
+      {% for dimensione, prezzo in prezzi.items() %}
+      {% set is_popular = loop.index == 2 %}
+      <div class="card-hover rounded-3xl border-2 {{ 'border-pink-400 shadow-2xl shadow-pink-100 scale-105' if is_popular else 'border-gray-100 shadow-lg' }} p-8 text-center relative bg-white">
+
+        {% if is_popular %}
+        <div class="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-pink-500 to-violet-500 text-white text-xs font-bold px-5 py-1.5 rounded-full shadow-md">
+          ⭐ La più scelta
+        </div>
+        {% endif %}
+
+        <div class="text-6xl mb-4">
+          {{ '🔤' if loop.index==1 else ('✨' if loop.index==2 else '👑') }}
+        </div>
+
+        <h3 class="font-display text-xl font-bold text-gray-700 mb-1">{{ dimensione }}</h3>
+        <p class="text-gray-400 text-sm mb-6">Lettera iniziale + nome in corsivo</p>
+
+        <div class="mb-6">
+          <span class="font-display text-5xl font-bold {{ 'gradient-text' if is_popular else 'text-gray-800' }}">€{{ "%.0f"|format(prezzo) }}</span>
+          {% set sped = config.get('spese_spedizione','5.90') | float %}
+          {% if sped == 0 %}
+          <p class="text-green-500 text-sm mt-1 font-semibold">✓ Spedizione gratuita</p>
+          {% else %}
+          <p class="text-gray-400 text-sm mt-1">+ €{{ "%.2f"|format(sped) }} spedizione</p>
+          {% endif %}
+        </div>
+
+        <ul class="text-sm text-gray-500 space-y-2 mb-8 text-left">
+          <li class="flex items-center gap-2"><span class="text-green-400">✓</span> Stampa 3D in PLA</li>
+          <li class="flex items-center gap-2"><span class="text-green-400">✓</span> Lettera iniziale + nome</li>
+          <li class="flex items-center gap-2"><span class="text-green-400">✓</span> 8 colori a scelta</li>
+          <li class="flex items-center gap-2"><span class="text-green-400">✓</span> Tema a scelta (+€5/deco)</li>
+        </ul>
+
+        <a href="/ordina?dimensione={{ dimensione | urlencode }}"
+           class="{{ 'btn-main text-white shadow-lg' if is_popular else 'btn-outline bg-white' }} font-bold py-3 px-6 rounded-full block text-center">
+          Scegli questa
+        </a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- TEMI                                                       -->
+<!-- ══════════════════════════════════════════════════════════ -->
+{% if temi %}
+<section class="py-20 px-4 section-wavy" id="temi">
+  <div class="max-w-5xl mx-auto">
+    <div class="text-center mb-14">
+      <span class="badge-nastro text-sm font-bold text-violet-500 uppercase tracking-widest">Novità</span>
+      <h2 class="font-display text-4xl md:text-5xl font-bold text-gray-800 mt-4 mb-3">
+        Aggiungi un <span class="gradient-text">tema</span>
+      </h2>
+      <p class="text-gray-400 max-w-xl mx-auto">Piccole decorazioni stampate in 3D abbinate alla tua lettera.<br>
+        <strong class="text-violet-600">Solo +€5 a decorazione!</strong> — Leone, elefante, unicorno e tanti altri</p>
+    </div>
+
+    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
+      {% for tema in temi %}
+      <a href="/ordina" class="card-hover group bg-white rounded-3xl p-5 flex flex-col items-center gap-2 text-center shadow-md border border-violet-50 hover:border-violet-300 transition">
+        <span class="text-4xl group-hover:scale-125 transition">{{ tema.emoji }}</span>
+        <h3 class="font-bold text-gray-700 text-sm">{{ tema.nome }}</h3>
+        {% if tema.descrizione %}
+        <p class="text-gray-400 text-xs leading-tight">{{ tema.descrizione }}</p>
+        {% endif %}
+        <span class="text-xs text-violet-500 font-semibold bg-violet-50 rounded-full px-2 py-0.5">+€5/deco</span>
+      </a>
+      {% endfor %}
+    </div>
+
+    <div class="text-center mt-10">
+      <a href="/ordina" class="btn-main text-white font-bold px-8 py-4 rounded-full text-lg inline-block shadow-xl">
+        🎨 Personalizza con un tema
+      </a>
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- COLORI                                                     -->
+<!-- ══════════════════════════════════════════════════════════ -->
+{% if colori %}
+<section class="py-16 px-4 bg-white">
+  <div class="max-w-4xl mx-auto text-center">
+    <h2 class="font-display text-3xl font-bold text-gray-800 mb-3">8 colori a scelta</h2>
+    <p class="text-gray-400 mb-10">Scegli il colore che si abbina meglio ai tuoi addobbi</p>
+    <div class="flex flex-wrap justify-center gap-5">
+      {% for colore in colori %}
+      <div class="flex flex-col items-center gap-2 group">
+        <div class="w-14 h-14 rounded-full shadow-md border-4 border-white ring-2 ring-gray-100 group-hover:scale-110 transition"
+             style="background:{{ colore.hex_code }}"></div>
+        <span class="text-xs text-gray-500 font-semibold">{{ colore.nome }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- PERCHÉ SCEGLIERCI                                          -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<section class="py-20 px-4 section-dots">
+  <div class="max-w-5xl mx-auto">
+    <div class="text-center mb-14">
+      <h2 class="font-display text-4xl font-bold text-gray-800">Perché sceglierci</h2>
+    </div>
+    <div class="grid md:grid-cols-3 gap-8">
+      {% for item in [
+        ('🎨', 'Personalizzazione totale', 'Lettera, nome, colore, dimensione, tema: ogni dettaglio è scelto da te', 'from-pink-50 to-rose-50', 'pink'),
+        ('🏠', 'Artigianato italiano', 'Ogni pezzo è stampato con cura nel nostro laboratorio artigianale', 'from-violet-50 to-purple-50', 'violet'),
+        ('🚚', 'Consegna veloce', 'Spediamo in tutta Italia in ' ~ config.get('tempi_consegna','7-10 giorni'), 'from-blue-50 to-sky-50', 'blue'),
+        ('💳', 'Pagamento sicuro', 'Stripe e PayPal garantiscono il massimo della sicurezza nei tuoi acquisti', 'from-green-50 to-emerald-50', 'green'),
+        ('📸', 'Foto reali', 'Quello che vedi è quello che ricevi — nessuna sorpresa', 'from-amber-50 to-yellow-50', 'amber'),
+        ('💬', 'Supporto diretto', 'Hai dubbi? Scrivici su WhatsApp — risposta garantita in poche ore', 'from-fuchsia-50 to-pink-50', 'fuchsia'),
+      ] %}
+      <div class="card-hover rounded-3xl p-7 bg-gradient-to-br {{ item[3] }} border border-white shadow-sm">
+        <div class="text-4xl mb-4">{{ item[0] }}</div>
+        <h3 class="font-bold text-gray-800 text-lg mb-2">{{ item[1] }}</h3>
+        <p class="text-gray-500 text-sm leading-relaxed">{{ item[2] }}</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- CTA FINALE                                                 -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<section class="py-24 px-4 hero-bg relative overflow-hidden">
+  <div class="deco-wrap">
+    <span class="deco float-a" style="top:10%; left:5%">🎈</span>
+    <span class="deco float-b" style="top:20%; right:8%">🎀</span>
+    <span class="deco float-c" style="bottom:15%; left:12%">✨</span>
+    <span class="deco float-d" style="bottom:20%; right:15%">⭐</span>
+  </div>
+
+  <div class="max-w-3xl mx-auto text-center relative z-10">
+    <h2 class="font-display text-4xl md:text-5xl font-bold text-gray-800 mb-4">
+      Pronta a <span class="shimmer-text">sorprendere</span>?
+    </h2>
+    <p class="text-gray-500 text-lg mb-10">
+      Crea subito la tua lettera personalizzata.<br>
+      Ci vuole solo <strong class="text-pink-500">2 minuti</strong>!
+    </p>
+    <a href="/ordina"
+       class="btn-main text-white font-bold px-12 py-5 rounded-full text-xl shadow-2xl inline-block">
+      🎀 Crea la tua lettera
+    </a>
+    {% set sped = config.get('spese_spedizione','5.90') | float %}
+    {% if sped == 0 %}
+    <p class="text-green-600 mt-5 font-semibold">🚚 Spedizione GRATUITA in tutta Italia!</p>
+    {% else %}
+    <p class="text-gray-400 mt-5 text-sm">Spedizione €{{ "%.2f"|format(sped) }} · {{ config.get('tempi_consegna','7-10 gg') }}</p>
+    {% endif %}
+  </div>
+</section>
+
+{% endblock %}

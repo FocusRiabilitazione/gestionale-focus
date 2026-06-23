@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+sqlmodel
+sqladmin
+python-multipart
+jinja2
+python-dotenv
+stripe
+aiosmtplib
+itsdangerous
+email-validator
+httpx
+psycopg2-binary
