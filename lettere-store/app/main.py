@@ -214,9 +214,9 @@ def _seed_dati_iniziali():
 
         # Config di default
         for chiave, valore, desc in [
-            ("nome_negozio", "Piccolettere", "Nome visualizzato nel sito"),
+            ("nome_negozio", "TOTO", "Nome visualizzato nel sito"),
             ("telefono", "+39 000 000 0000", "Numero WhatsApp/telefono"),
-            ("email_contatto", "info@letteredelcuore.it", "Email pubblica"),
+            ("email_contatto", "info@toto3d.it", "Email pubblica"),
             ("instagram", "", "URL profilo Instagram"),
             ("tempi_consegna", "7-10 giorni lavorativi", "Tempi di consegna indicativi"),
             ("spese_spedizione", "5.90", "Spese di spedizione in euro (0 = gratuita)"),

@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: lettere-store
+    name: toto3d
     runtime: python
     rootDir: lettere-store
     buildCommand: pip install -r requirements.txt
