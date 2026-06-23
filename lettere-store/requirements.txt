@@ -9,3 +9,5 @@ stripe
 aiosmtplib
 itsdangerous
 email-validator
+httpx
+psycopg2-binary
