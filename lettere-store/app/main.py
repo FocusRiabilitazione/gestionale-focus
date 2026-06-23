@@ -15,7 +15,7 @@ from .models import Ordine, ColoreDisponibile, ConfigSito, StatoOrdine, Tema, El
 from .routes.shop import router as shop_router
 from .routes.checkout import router as checkout_router
 
-app = FastAPI(title="Lettere Personalizzate")
+app = FastAPI(title="TOTO 3D")
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
@@ -150,7 +150,7 @@ class ConfigAdmin(ModelView, model=ConfigSito):
     form_columns = [ConfigSito.chiave, ConfigSito.valore, ConfigSito.descrizione]
 
 
-admin = Admin(app, engine, title="🎀 Lettere Store – Admin")
+admin = Admin(app, engine, title="🎀 TOTO 3D – Admin")
 admin.add_view(OrdineAdmin)
 admin.add_view(ColoreAdmin)
 admin.add_view(TemaAdmin)
@@ -214,9 +214,9 @@ def _seed_dati_iniziali():
 
         # Config di default
         for chiave, valore, desc in [
-            ("nome_negozio", "TOTO", "Nome visualizzato nel sito"),
+            ("nome_negozio", "TOTO 3D", "Nome visualizzato nel sito"),
             ("telefono", "+39 000 000 0000", "Numero WhatsApp/telefono"),
-            ("email_contatto", "info@toto3d.it", "Email pubblica"),
+            ("email_contatto", "focus3dhand@gmail.com", "Email pubblica"),
             ("instagram", "", "URL profilo Instagram"),
             ("tempi_consegna", "7-10 giorni lavorativi", "Tempi di consegna indicativi"),
             ("spese_spedizione", "5.90", "Spese di spedizione in euro (0 = gratuita)"),
