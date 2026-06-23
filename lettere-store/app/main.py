@@ -214,7 +214,7 @@ def _seed_dati_iniziali():
 
         # Config di default
         for chiave, valore, desc in [
-            ("nome_negozio", "Lettere del Cuore", "Nome visualizzato nel sito"),
+            ("nome_negozio", "Piccolettere", "Nome visualizzato nel sito"),
             ("telefono", "+39 000 000 0000", "Numero WhatsApp/telefono"),
             ("email_contatto", "info@letteredelcuore.it", "Email pubblica"),
             ("instagram", "", "URL profilo Instagram"),
